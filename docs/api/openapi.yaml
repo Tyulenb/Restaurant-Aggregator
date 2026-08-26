@@ -1,0 +1,1474 @@
+openapi: 3.0.3
+
+info:
+  title: Avito Kitchen API
+  version: 1.0.0
+  description: |
+    MVP API for Avito Kitchen.
+
+    The service exposes two API surfaces:
+
+    - Customer API (`/api/v1`) for discovering establishments, browsing menus,
+      creating orders, tracking orders, and cancelling pending orders.
+    - Partner API (`/api/partner/v1`) for establishments to manage their
+      catalog and availability, adjust finite stock, poll incoming orders,
+      and update order lifecycle state.
+
+    Partner identity is derived from the partner API key. Partner endpoints
+    never accept an establishment ID as an authorization boundary.
+
+    Inventory model:
+    - `untracked`: Avito Kitchen does not track a finite quantity.
+    - `finite`: Avito Kitchen tracks an allocated quantity and decrements it
+      atomically when an order is created.
+    - If a pending order with finite-stock items is rejected or cancelled,
+      Avito Kitchen restores the allocated quantity.
+
+    Order state machine:
+    `pending -> accepted -> preparing -> ready -> completed`
+
+    Terminal alternatives from `pending`:
+    - `pending -> rejected` by the establishment
+    - `pending -> cancelled` by the customer
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Customer - Establishments
+  - name: Customer - Orders
+  - name: Partner - Establishment
+  - name: Partner - Categories
+  - name: Partner - Products
+  - name: Partner - Orders
+
+paths:
+  /api/v1/establishments:
+    get:
+      tags: [Customer - Establishments]
+      operationId: listEstablishments
+      summary: List establishments
+      description: Returns establishments visible to customers.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: available
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter by whether the establishment currently accepts orders.
+      responses:
+        '200':
+          description: Establishments returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstablishmentListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/establishments/{establishmentId}/menu:
+    get:
+      tags: [Customer - Establishments]
+      operationId: getEstablishmentMenu
+      summary: Get establishment menu
+      description: |
+        Returns active categories and active products for an establishment.
+        Soft-deleted catalog entities are never returned by the customer API.
+      parameters:
+        - $ref: '#/components/parameters/EstablishmentId'
+      responses:
+        '200':
+          description: Menu returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/orders:
+    post:
+      tags: [Customer - Orders]
+      operationId: createOrder
+      summary: Create an order
+      description: |
+        Creates an order in `pending` state.
+
+        The operation is idempotent by `Idempotency-Key`.
+
+        Before creation Avito Kitchen validates that:
+        - the establishment exists and accepts orders;
+        - every requested product exists, is active, belongs to the establishment,
+          and is available;
+        - each requested quantity is positive;
+        - finite-stock products have enough allocated quantity.
+
+        For finite-stock products, quantity is decremented atomically in the same
+        database transaction in which the order and order-item snapshots are created.
+
+        `201 Created` means Avito Kitchen accepted and persisted the order.
+        It does not mean that the establishment accepted the order.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created.
+          headers:
+            Location:
+              description: URL of the created order.
+              schema:
+                type: string
+                example: /api/v1/orders/9af6c31c-427d-43b1-8418-2e897e1a2f52
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Establishment or product was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: |
+            Business conflict, for example:
+            - establishment is not accepting orders;
+            - product is unavailable;
+            - insufficient finite stock;
+            - duplicate idempotency key with a different request payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                insufficientStock:
+                  value:
+                    code: INSUFFICIENT_STOCK
+                    message: Requested quantity is not available.
+                    details:
+                      product_id: 85230d0e-2cc0-4c36-b04f-77aeb0fe186e
+                      requested_quantity: 3
+                      available_quantity: 1
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/orders/{orderId}:
+    get:
+      tags: [Customer - Orders]
+      operationId: getOrder
+      summary: Get an order
+      description: |
+        Returns the current order state and immutable order-item snapshots.
+        Customer authentication is outside the MVP scope; order IDs are UUIDs.
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Order returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/orders/{orderId}/cancel:
+    post:
+      tags: [Customer - Orders]
+      operationId: cancelOrder
+      summary: Cancel a pending order
+      description: |
+        Cancels an order only while it is in `pending` state.
+
+        The operation is idempotent:
+        - cancelling a `pending` order changes it to `cancelled`;
+        - cancelling an already `cancelled` order returns the current order;
+        - cancelling an order in any other state returns `409 Conflict`.
+
+        Finite-stock quantity reserved by the pending order is restored atomically
+        in the same transaction as the state change.
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Order cancelled, or it was already cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The order can no longer be cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: INVALID_ORDER_STATE_TRANSITION
+                message: Order can be cancelled only while pending.
+                details:
+                  current_status: accepted
+                  requested_status: cancelled
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/partner/v1/establishment:
+    get:
+      tags: [Partner - Establishment]
+      operationId: getPartnerEstablishment
+      summary: Get authenticated establishment
+      security:
+        - PartnerApiKey: []
+      responses:
+        '200':
+          description: Authenticated establishment returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerEstablishment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/partner/v1/establishment/availability:
+    patch:
+      tags: [Partner - Establishment]
+      operationId: updateEstablishmentAvailability
+      summary: Pause or resume accepting orders
+      security:
+        - PartnerApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEstablishmentAvailabilityRequest'
+      responses:
+        '200':
+          description: Availability updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerEstablishment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/partner/v1/categories:
+    get:
+      tags: [Partner - Categories]
+      operationId: listPartnerCategories
+      summary: List categories
+      security:
+        - PartnerApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: include_deleted
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Categories returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerCategoryListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Partner - Categories]
+      operationId: createCategory
+      summary: Create a category
+      security:
+        - PartnerApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+      responses:
+        '201':
+          description: Category created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerCategory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: A category with this external ID already exists for the establishment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/partner/v1/categories/{externalCategoryId}:
+    get:
+      tags: [Partner - Categories]
+      operationId: getCategory
+      summary: Get a category by establishment external ID
+      security:
+        - PartnerApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/ExternalCategoryId'
+      responses:
+        '200':
+          description: Category returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerCategory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [Partner - Categories]
+      operationId: updateCategory
+      summary: Update a category
+      security:
+        - PartnerApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/ExternalCategoryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRequest'
+      responses:
+        '200':
+          description: Category updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerCategory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Partner - Categories]
+      operationId: deleteCategory
+      summary: Soft-delete a category
+      description: |
+        Soft-deletes the category. Active products in the category are also
+        soft-deleted in the same transaction. Existing orders are unaffected.
+      security:
+        - PartnerApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/ExternalCategoryId'
+      responses:
+        '204':
+          description: Category deleted, or it was already deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/partner/v1/products:
+    get:
+      tags: [Partner - Products]
+      operationId: listPartnerProducts
+      summary: List products
+      security:
+        - PartnerApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: category_external_id
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 128
+        - name: include_deleted
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Products returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerProductListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Partner - Products]
+      operationId: createProduct
+      summary: Create a product
+      description: |
+        Creates a product in a category owned by the authenticated establishment.
+
+        `inventory_type` is fixed at product creation in this MVP:
+        - `untracked` requires `quantity` to be omitted/null;
+        - `finite` requires a non-negative initial `quantity`.
+      security:
+        - PartnerApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Product created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerProduct'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Category was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: A product with this external ID already exists for the establishment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/partner/v1/products/{externalProductId}:
+    get:
+      tags: [Partner - Products]
+      operationId: getProduct
+      summary: Get a product by establishment external ID
+      security:
+        - PartnerApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/ExternalProductId'
+      responses:
+        '200':
+          description: Product returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerProduct'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [Partner - Products]
+      operationId: updateProduct
+      summary: Update product metadata
+      description: |
+        Updates catalog metadata. Finite stock quantity is not overwritten here;
+        use the stock-adjustment endpoint. `inventory_type` is immutable in this MVP.
+      security:
+        - PartnerApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/ExternalProductId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductRequest'
+      responses:
+        '200':
+          description: Product updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerProduct'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Partner - Products]
+      operationId: deleteProduct
+      summary: Soft-delete a product
+      security:
+        - PartnerApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/ExternalProductId'
+      responses:
+        '204':
+          description: Product deleted, or it was already deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/partner/v1/products/{externalProductId}/stock-adjustments:
+    post:
+      tags: [Partner - Products]
+      operationId: adjustProductStock
+      summary: Adjust finite stock allocation
+      description: |
+        Applies a delta to the allocated stock of a `finite` product.
+
+        This endpoint is idempotent by `Idempotency-Key`, because retrying the
+        same delta without idempotency protection could apply it more than once.
+
+        The resulting quantity must never be negative.
+      security:
+        - PartnerApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/ExternalProductId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockAdjustmentRequest'
+      responses:
+        '200':
+          description: Stock adjusted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerProduct'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: |
+            The adjustment cannot be applied, for example because:
+            - the product uses untracked inventory;
+            - the resulting finite quantity would be negative;
+            - the same idempotency key was used with a different payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/partner/v1/orders:
+    get:
+      tags: [Partner - Orders]
+      operationId: listPartnerOrders
+      summary: Poll establishment orders
+      description: |
+        Returns orders belonging only to the authenticated establishment.
+        Polling does not consume or acknowledge orders; a pending order continues
+        to be returned until its state changes.
+      security:
+        - PartnerApiKey: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/OrderStatus'
+          description: Commonly `pending` when polling for newly created orders.
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Orders returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerOrderListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/partner/v1/orders/{orderId}:
+    get:
+      tags: [Partner - Orders]
+      operationId: getPartnerOrder
+      summary: Get an establishment order
+      security:
+        - PartnerApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Order returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/partner/v1/orders/{orderId}/accept:
+    post:
+      tags: [Partner - Orders]
+      operationId: acceptOrder
+      summary: Accept a pending order
+      description: |
+        Performs `pending -> accepted`.
+
+        The operation is idempotent when the order is already `accepted`.
+        Any incompatible current state returns `409 Conflict`.
+      security:
+        - PartnerApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Order accepted, or it was already accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InvalidOrderTransition'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/partner/v1/orders/{orderId}/reject:
+    post:
+      tags: [Partner - Orders]
+      operationId: rejectOrder
+      summary: Reject a pending order
+      description: |
+        Performs `pending -> rejected`.
+
+        Finite-stock quantity reserved by the pending order is restored atomically.
+        The operation is idempotent when the order is already `rejected`.
+      security:
+        - PartnerApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectOrderRequest'
+      responses:
+        '200':
+          description: Order rejected, or it was already rejected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InvalidOrderTransition'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/partner/v1/orders/{orderId}/status:
+    patch:
+      tags: [Partner - Orders]
+      operationId: updateOrderStatus
+      summary: Advance an accepted order
+      description: |
+        Advances an accepted order through processing states.
+
+        Allowed transitions:
+        - `accepted -> preparing`
+        - `preparing -> ready`
+        - `ready -> completed`
+
+        Requesting the current state again is treated as an idempotent no-op.
+        Any other transition returns `409 Conflict`.
+      security:
+        - PartnerApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrderStatusRequest'
+      responses:
+        '200':
+          description: Order status updated, or the requested status was already current.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InvalidOrderTransition'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    PartnerApiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: API key
+      description: |
+        Partner API key provisioned out of band for the MVP.
+        The authenticated key determines the establishment identity.
+
+  parameters:
+    EstablishmentId:
+      name: establishmentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    ExternalCategoryId:
+      name: externalCategoryId
+      in: path
+      required: true
+      description: Category ID in the establishment's own namespace.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+
+    ExternalProductId:
+      name: externalProductId
+      in: path
+      required: true
+      description: Product ID in the establishment's own namespace.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        Client-generated UUID used to safely retry a non-idempotent operation.
+        Reusing the same key with a different payload returns a conflict.
+      schema:
+        type: string
+        format: uuid
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+  responses:
+    BadRequest:
+      description: Request syntax or parameter format is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Partner API key is missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: UNAUTHORIZED
+            message: Missing or invalid partner API key.
+
+    NotFound:
+      description: Requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: NOT_FOUND
+            message: Resource not found.
+
+    ValidationError:
+      description: Request is syntactically valid but violates field validation rules.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: VALIDATION_ERROR
+            message: Request validation failed.
+            details:
+              field: quantity
+              reason: must be greater than zero
+
+    InvalidOrderTransition:
+      description: Requested order state transition is not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: INVALID_ORDER_STATE_TRANSITION
+            message: Requested order state transition is not allowed.
+            details:
+              current_status: ready
+              requested_status: preparing
+
+    InternalError:
+      description: Unexpected internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: INTERNAL_ERROR
+            message: Internal server error.
+
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+
+    Price:
+      type: number
+      format: float32
+      minimum: 0
+      description: Monetary amount in minor currency units, e.g. kopecks.
+      example: 49900
+
+    InventoryType:
+      type: string
+      enum:
+        - untracked
+        - finite
+
+    OrderStatus:
+      type: string
+      enum:
+        - pending
+        - accepted
+        - preparing
+        - ready
+        - completed
+        - rejected
+        - cancelled
+
+    ProcessingOrderStatus:
+      type: string
+      enum:
+        - preparing
+        - ready
+        - completed
+
+    Establishment:
+      type: object
+      required:
+        - id
+        - name
+        - available
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        available:
+          type: boolean
+          description: Whether the establishment currently accepts new orders.
+
+    PartnerEstablishment:
+      allOf:
+        - $ref: '#/components/schemas/Establishment'
+        - type: object
+          required:
+            - created_at
+            - updated_at
+          properties:
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+
+    EstablishmentListResponse:
+      type: object
+      required:
+        - items
+        - limit
+        - offset
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Establishment'
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    UpdateEstablishmentAvailabilityRequest:
+      type: object
+      required:
+        - available
+      additionalProperties: false
+      properties:
+        available:
+          type: boolean
+
+    MenuResponse:
+      type: object
+      required:
+        - establishment
+        - categories
+      properties:
+        establishment:
+          $ref: '#/components/schemas/Establishment'
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuCategory'
+
+    MenuCategory:
+      type: object
+      required:
+        - id
+        - external_id
+        - name
+        - products
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        external_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuProduct'
+
+    MenuProduct:
+      type: object
+      required:
+        - id
+        - external_id
+        - name
+        - price
+        - available
+        - inventory_type
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        external_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        price:
+          $ref: '#/components/schemas/Price'
+        available:
+          type: boolean
+          description: Whether the establishment has enabled this product.
+        inventory_type:
+          $ref: '#/components/schemas/InventoryType'
+        quantity:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: |
+            Current Avito-allocated quantity for finite products.
+            Null for untracked products.
+
+    CreateCategoryRequest:
+      type: object
+      required:
+        - external_id
+        - name
+      additionalProperties: false
+      properties:
+        external_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+
+    UpdateCategoryRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+
+    PartnerCategory:
+      type: object
+      required:
+        - id
+        - external_id
+        - name
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        external_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    PartnerCategoryListResponse:
+      type: object
+      required:
+        - items
+        - limit
+        - offset
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartnerCategory'
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    CreateProductRequest:
+      type: object
+      required:
+        - external_id
+        - category_external_id
+        - name
+        - price
+        - available
+        - inventory_type
+      additionalProperties: false
+      properties:
+        external_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        category_external_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        price:
+          $ref: '#/components/schemas/Price'
+        available:
+          type: boolean
+        inventory_type:
+          $ref: '#/components/schemas/InventoryType'
+        quantity:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: |
+            Required for `finite`; must be null/omitted for `untracked`.
+      example:
+        external_id: cheeseburger
+        category_external_id: burgers
+        name: Cheeseburger
+        description: Beef patty, cheese and sauce.
+        price: 49900
+        available: true
+        inventory_type: untracked
+        quantity: null
+
+    UpdateProductRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        category_external_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        price:
+          $ref: '#/components/schemas/Price'
+        available:
+          type: boolean
+
+    PartnerProduct:
+      type: object
+      required:
+        - id
+        - external_id
+        - category_external_id
+        - name
+        - price
+        - available
+        - inventory_type
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        external_id:
+          type: string
+        category_external_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        price:
+          $ref: '#/components/schemas/Price'
+        available:
+          type: boolean
+        inventory_type:
+          $ref: '#/components/schemas/InventoryType'
+        quantity:
+          type: integer
+          minimum: 0
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    PartnerProductListResponse:
+      type: object
+      required:
+        - items
+        - limit
+        - offset
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartnerProduct'
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    StockAdjustmentRequest:
+      type: object
+      required:
+        - delta
+      additionalProperties: false
+      properties:
+        delta:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+          not:
+            enum: [0]
+          description: Signed stock delta. The resulting quantity must be non-negative.
+      example:
+        delta: 20
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - establishment_id
+        - items
+      additionalProperties: false
+      properties:
+        establishment_id:
+          $ref: '#/components/schemas/UUID'
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/CreateOrderItem'
+      example:
+        establishment_id: 52f6b7a2-d402-4898-9c4b-8c2a9fdb5ffc
+        items:
+          - product_id: 85230d0e-2cc0-4c36-b04f-77aeb0fe186e
+            quantity: 2
+
+    CreateOrderItem:
+      type: object
+      required:
+        - product_id
+        - quantity
+      additionalProperties: false
+      properties:
+        product_id:
+          $ref: '#/components/schemas/UUID'
+        quantity:
+          type: integer
+          minimum: 1
+
+    Order:
+      type: object
+      required:
+        - id
+        - establishment_id
+        - customer_id
+        - delivery_id
+        - status
+        - total_price
+        - items
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        establishment_id:
+          $ref: '#/components/schemas/UUID'
+        customer_id:
+          $ref: '#/components/schemas/UUID'
+          description: |
+            Placeholder UUID generated by Kitchen in the MVP.
+            The MVP writes the same request-scoped placeholder UUID to
+            `customer_id` and `delivery_id`; future integrations may split them.
+        delivery_id:
+          $ref: '#/components/schemas/UUID'
+          description: |
+            Placeholder UUID generated by Kitchen in the MVP.
+            The MVP writes the same request-scoped placeholder UUID to
+            `customer_id` and `delivery_id`; future integrations may split them.
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        total_price:
+          $ref: '#/components/schemas/Price'
+        rejection_reason:
+          type: string
+          maxLength: 255
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    OrderItem:
+      type: object
+      required:
+        - id
+        - product_id
+        - external_product_id
+        - product_name
+        - unit_price
+        - quantity
+        - total_sum
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        product_id:
+          $ref: '#/components/schemas/UUID'
+        external_product_id:
+          type: string
+          description: Product external ID snapshot understood by the establishment.
+        product_name:
+          type: string
+          description: Product-name snapshot at order creation time.
+        unit_price:
+          allOf:
+            - $ref: '#/components/schemas/Price'
+          description: Unit-price snapshot at order creation time.
+        quantity:
+          type: integer
+          minimum: 1
+        total_sum:
+          allOf:
+            - $ref: '#/components/schemas/Price'
+          description: "unit_price * quantity"
+
+    PartnerOrderListResponse:
+      type: object
+      required:
+        - items
+        - limit
+        - offset
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    RejectOrderRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          maxLength: 255
+          example: TOO_BUSY
+
+    UpdateOrderStatusRequest:
+      type: object
+      required:
+        - status
+      additionalProperties: false
+      properties:
+        status:
+          $ref: '#/components/schemas/ProcessingOrderStatus'
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: INSUFFICIENT_STOCK
+        message:
+          type: string
+        details:
+          type: object
+          nullable: true
+          additionalProperties: true
