@@ -1,0 +1,47 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+  relative-path-mode: gomod
+
+linters:
+  default: standard
+
+  enable:
+    - bodyclose
+    - contextcheck
+    - durationcheck
+    - errorlint
+    - gocritic
+    - gosec
+    - makezero
+    - misspell
+    - nilerr
+    - predeclared
+    - rowserrcheck
+    - sloglint
+    - sqlclosecheck
+    - unconvert
+    - wastedassign
+
+  exclusions:
+    generated: lax
+    warn-unused: true
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
+          - noctx
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+  exclusions:
+    generated: lax
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
