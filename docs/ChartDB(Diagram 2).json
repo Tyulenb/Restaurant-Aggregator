@@ -1,0 +1,798 @@
+{
+  "id": "0",
+  "name": "Diagram 2",
+  "createdAt": "2026-08-26T13:08:09.910Z",
+  "updatedAt": "2026-08-27T11:55:26.179Z",
+  "databaseType": "postgresql",
+  "tables": [
+    {
+      "id": "1",
+      "name": "product",
+      "x": 807.1142217712445,
+      "y": -1365.88501646493,
+      "fields": [
+        {
+          "id": "2",
+          "name": "id",
+          "type": {
+            "id": "uuid",
+            "name": "uuid"
+          },
+          "unique": true,
+          "nullable": false,
+          "primaryKey": true,
+          "createdAt": 1787749719548
+        },
+        {
+          "id": "3",
+          "name": "external_id",
+          "type": {
+            "id": "text",
+            "name": "text"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787756069631
+        },
+        {
+          "id": "4",
+          "name": "establishment_id",
+          "type": {
+            "id": "uuid",
+            "name": "uuid"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787757383627
+        },
+        {
+          "id": "5",
+          "name": "category_id",
+          "type": {
+            "id": "uuid",
+            "name": "uuid"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787753084971
+        },
+        {
+          "id": "6",
+          "name": "name",
+          "type": {
+            "id": "text",
+            "name": "text"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787753092943
+        },
+        {
+          "id": "7",
+          "name": "description",
+          "type": {
+            "id": "text",
+            "name": "text"
+          },
+          "unique": false,
+          "nullable": true,
+          "primaryKey": false,
+          "createdAt": 1787753099201
+        },
+        {
+          "id": "8",
+          "name": "available",
+          "type": {
+            "id": "boolean",
+            "name": "boolean"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787754065253
+        },
+        {
+          "id": "9",
+          "name": "inventory_type_id",
+          "type": {
+            "id": "integer",
+            "name": "integer"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787754091233
+        },
+        {
+          "id": "10",
+          "name": "quantity",
+          "type": {
+            "id": "integer",
+            "name": "integer"
+          },
+          "unique": false,
+          "nullable": true,
+          "primaryKey": false,
+          "createdAt": 1787754076834
+        },
+        {
+          "id": "11",
+          "name": "price",
+          "type": {
+            "id": "numeric",
+            "name": "numeric"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787753117176
+        },
+        {
+          "id": "12",
+          "name": "created_at",
+          "type": {
+            "id": "timestamp_with_time_zone",
+            "name": "timestamp with time zone"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787753474478
+        },
+        {
+          "id": "13",
+          "name": "updated_at",
+          "type": {
+            "id": "timestamp_with_time_zone",
+            "name": "timestamp with time zone"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787753484607
+        },
+        {
+          "id": "14",
+          "name": "deleted_at",
+          "type": {
+            "id": "timestamp_with_time_zone",
+            "name": "timestamp with time zone"
+          },
+          "unique": false,
+          "nullable": true,
+          "primaryKey": false,
+          "createdAt": 1787755917398
+        }
+      ],
+      "indexes": [],
+      "color": "#ffe374",
+      "createdAt": 1787749719548,
+      "isView": false,
+      "order": 2,
+      "expanded": true,
+      "diagramId": "vaic8t8y0qee",
+      "width": 244
+    },
+    {
+      "id": "15",
+      "name": "establishment",
+      "x": 154.2056543202396,
+      "y": -875.7436909786647,
+      "fields": [
+        {
+          "id": "16",
+          "name": "id",
+          "type": {
+            "id": "uuid",
+            "name": "uuid"
+          },
+          "unique": true,
+          "nullable": false,
+          "primaryKey": true,
+          "createdAt": 1787749694379
+        },
+        {
+          "id": "17",
+          "name": "name",
+          "type": {
+            "id": "text",
+            "name": "text"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787752844177
+        },
+        {
+          "id": "18",
+          "name": "description",
+          "type": {
+            "id": "text",
+            "name": "text"
+          },
+          "unique": false,
+          "nullable": true,
+          "primaryKey": false,
+          "createdAt": 1787752851904
+        },
+        {
+          "id": "19",
+          "name": "available",
+          "type": {
+            "id": "boolean",
+            "name": "boolean"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787755972266
+        },
+        {
+          "id": "20",
+          "name": "created_at",
+          "type": {
+            "id": "timestamp_with_time_zone",
+            "name": "timestamp with time zone"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787752870899
+        },
+        {
+          "id": "21",
+          "name": "updated_at",
+          "type": {
+            "id": "timestamp_with_time_zone",
+            "name": "timestamp with time zone"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787752891676
+        }
+      ],
+      "indexes": [],
+      "color": "#ffe374",
+      "createdAt": 1787749694379,
+      "isView": false,
+      "order": 0,
+      "width": 235,
+      "diagramId": "vaic8t8y0qee"
+    },
+    {
+      "id": "22",
+      "name": "orders",
+      "x": 604.9556543202393,
+      "y": -769.3686909786647,
+      "fields": [
+        {
+          "id": "23",
+          "name": "id",
+          "type": {
+            "id": "uuid",
+            "name": "uuid"
+          },
+          "unique": true,
+          "nullable": false,
+          "primaryKey": true,
+          "createdAt": 1787749732029
+        },
+        {
+          "id": "24",
+          "name": "idempotency_key",
+          "type": {
+            "id": "uuid",
+            "name": "uuid"
+          },
+          "unique": true,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787831287081
+        },
+        {
+          "id": "25",
+          "name": "establishment_id",
+          "type": {
+            "id": "uuid",
+            "name": "uuid"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787757891856
+        },
+        {
+          "id": "26",
+          "name": "customer_id",
+          "type": {
+            "id": "uuid",
+            "name": "uuid"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787754265164
+        },
+        {
+          "id": "27",
+          "name": "delivery_id",
+          "type": {
+            "id": "uuid",
+            "name": "uuid"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787754361975
+        },
+        {
+          "id": "28",
+          "name": "status_id",
+          "type": {
+            "id": "integer",
+            "name": "integer"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787754493531
+        },
+        {
+          "id": "29",
+          "name": "total_price",
+          "type": {
+            "id": "numeric",
+            "name": "numeric"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787753970592
+        },
+        {
+          "id": "30",
+          "name": "rejection_reason",
+          "type": {
+            "id": "text",
+            "name": "text"
+          },
+          "unique": false,
+          "nullable": true,
+          "primaryKey": false,
+          "createdAt": 1787831320944
+        },
+        {
+          "id": "31",
+          "name": "created_at",
+          "type": {
+            "id": "timestamp_with_time_zone",
+            "name": "timestamp with time zone"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787754464230
+        },
+        {
+          "id": "32",
+          "name": "updated_at",
+          "type": {
+            "id": "timestamp_with_time_zone",
+            "name": "timestamp with time zone"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787754472534
+        }
+      ],
+      "indexes": [],
+      "color": "#ffe374",
+      "createdAt": 1787749732029,
+      "isView": false,
+      "order": 3,
+      "width": 270,
+      "diagramId": "vaic8t8y0qee"
+    },
+    {
+      "id": "33",
+      "name": "category",
+      "x": 259.9556543202395,
+      "y": -1256.8686909786647,
+      "fields": [
+        {
+          "id": "34",
+          "name": "id",
+          "type": {
+            "id": "uuid",
+            "name": "uuid"
+          },
+          "unique": true,
+          "nullable": false,
+          "primaryKey": true,
+          "createdAt": 1787749707077
+        },
+        {
+          "id": "35",
+          "name": "establishment_id",
+          "type": {
+            "id": "uuid",
+            "name": "uuid"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787752941030
+        },
+        {
+          "id": "36",
+          "name": "external_id",
+          "type": {
+            "id": "text",
+            "name": "text"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787752930524
+        },
+        {
+          "id": "37",
+          "name": "name",
+          "type": {
+            "id": "text",
+            "name": "text"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787753043400
+        },
+        {
+          "id": "38",
+          "name": "description",
+          "type": {
+            "id": "text",
+            "name": "text"
+          },
+          "unique": false,
+          "nullable": true,
+          "primaryKey": false,
+          "createdAt": 1787753150271
+        },
+        {
+          "id": "39",
+          "name": "created_at",
+          "type": {
+            "id": "timestamp_with_time_zone",
+            "name": "timestamp with time zone"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787753059397
+        },
+        {
+          "id": "40",
+          "name": "updated_at",
+          "type": {
+            "id": "timestamp_with_time_zone",
+            "name": "timestamp with time zone"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787753064195
+        },
+        {
+          "id": "41",
+          "name": "deleted_at",
+          "type": {
+            "id": "timestamp_with_time_zone",
+            "name": "timestamp with time zone"
+          },
+          "unique": false,
+          "nullable": true,
+          "primaryKey": false,
+          "createdAt": 1787755868977
+        }
+      ],
+      "indexes": [],
+      "color": "#ffe374",
+      "createdAt": 1787749707077,
+      "isView": false,
+      "order": 1,
+      "diagramId": "vaic8t8y0qee"
+    },
+    {
+      "id": "42",
+      "name": "order_item",
+      "x": 1138.7056543202393,
+      "y": -805.6186909786647,
+      "fields": [
+        {
+          "id": "43",
+          "name": "id",
+          "type": {
+            "id": "uuid",
+            "name": "uuid"
+          },
+          "unique": true,
+          "nullable": false,
+          "primaryKey": true,
+          "createdAt": 1787749748179
+        },
+        {
+          "id": "44",
+          "name": "order_id",
+          "type": {
+            "id": "uuid",
+            "name": "uuid"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787754583554
+        },
+        {
+          "id": "45",
+          "name": "product_id",
+          "type": {
+            "id": "uuid",
+            "name": "uuid"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787754560741
+        },
+        {
+          "id": "46",
+          "name": "external_product_id",
+          "type": {
+            "id": "text",
+            "name": "text"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787756483518
+        },
+        {
+          "id": "47",
+          "name": "product_name",
+          "type": {
+            "id": "text",
+            "name": "text"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787754859196
+        },
+        {
+          "id": "48",
+          "name": "unit_price",
+          "type": {
+            "id": "numeric",
+            "name": "numeric"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787754870857
+        },
+        {
+          "id": "49",
+          "name": "quantity",
+          "type": {
+            "id": "integer",
+            "name": "integer"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787754874261
+        },
+        {
+          "id": "50",
+          "name": "total_sum",
+          "type": {
+            "id": "numeric",
+            "name": "numeric"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787754893053
+        }
+      ],
+      "indexes": [],
+      "color": "#ffe374",
+      "createdAt": 1787749748179,
+      "isView": false,
+      "order": 4,
+      "width": 259,
+      "diagramId": "vaic8t8y0qee"
+    },
+    {
+      "id": "51",
+      "name": "order_status",
+      "x": 299.3471745025309,
+      "y": -549.9843752495264,
+      "fields": [
+        {
+          "id": "52",
+          "name": "id",
+          "type": {
+            "id": "integer",
+            "name": "integer"
+          },
+          "unique": true,
+          "nullable": false,
+          "primaryKey": true,
+          "createdAt": 1787828222514
+        },
+        {
+          "id": "53",
+          "name": "status",
+          "type": {
+            "id": "text",
+            "name": "text"
+          },
+          "unique": true,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787828238254
+        }
+      ],
+      "indexes": [],
+      "color": "#ffe374",
+      "createdAt": 1787828222514,
+      "isView": false,
+      "order": 5
+    },
+    {
+      "id": "54",
+      "name": "inventory_type",
+      "x": 1193.0971745025308,
+      "y": -1277.4843752495262,
+      "fields": [
+        {
+          "id": "55",
+          "name": "id",
+          "type": {
+            "id": "integer",
+            "name": "integer"
+          },
+          "unique": true,
+          "nullable": false,
+          "primaryKey": true,
+          "createdAt": 1787828273488
+        },
+        {
+          "id": "56",
+          "name": "inventory_type",
+          "type": {
+            "id": "text",
+            "name": "text"
+          },
+          "unique": true,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1787828317907
+        }
+      ],
+      "indexes": [],
+      "color": "#ffe374",
+      "createdAt": 1787828273488,
+      "isView": false,
+      "order": 6,
+      "width": 310
+    }
+  ],
+  "relationships": [
+    {
+      "id": "57",
+      "name": "category_id_fk",
+      "sourceTableId": "33",
+      "targetTableId": "1",
+      "sourceFieldId": "34",
+      "targetFieldId": "5",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1787754961948,
+      "diagramId": "vaic8t8y0qee"
+    },
+    {
+      "id": "58",
+      "name": "establishment_id_fk",
+      "sourceTableId": "15",
+      "targetTableId": "22",
+      "sourceFieldId": "16",
+      "targetFieldId": "25",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1787757910466,
+      "diagramId": "vaic8t8y0qee"
+    },
+    {
+      "id": "59",
+      "name": "establishment_id_fk",
+      "sourceTableId": "15",
+      "targetTableId": "33",
+      "sourceFieldId": "16",
+      "targetFieldId": "35",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1787754924186,
+      "diagramId": "vaic8t8y0qee"
+    },
+    {
+      "id": "60",
+      "name": "establishment_id_fk",
+      "sourceTableId": "15",
+      "targetTableId": "1",
+      "sourceFieldId": "16",
+      "targetFieldId": "4",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1787757439359,
+      "diagramId": "vaic8t8y0qee"
+    },
+    {
+      "id": "61",
+      "name": "order_id_fk",
+      "sourceTableId": "22",
+      "targetTableId": "42",
+      "sourceFieldId": "23",
+      "targetFieldId": "44",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1787755154379,
+      "diagramId": "vaic8t8y0qee"
+    },
+    {
+      "id": "62",
+      "name": "product_id_fk",
+      "sourceTableId": "1",
+      "targetTableId": "42",
+      "sourceFieldId": "2",
+      "targetFieldId": "45",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1787781577168,
+      "diagramId": "vaic8t8y0qee"
+    },
+    {
+      "id": "63",
+      "name": "order_status_id_fk",
+      "sourceTableId": "51",
+      "targetTableId": "22",
+      "sourceFieldId": "52",
+      "targetFieldId": "28",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1787828256829
+    },
+    {
+      "id": "64",
+      "name": "product_inventory_type_id_fk",
+      "sourceTableId": "54",
+      "targetTableId": "1",
+      "sourceFieldId": "55",
+      "targetFieldId": "9",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1787828354618
+    }
+  ],
+  "dependencies": [],
+  "areas": [],
+  "customTypes": []
+}
