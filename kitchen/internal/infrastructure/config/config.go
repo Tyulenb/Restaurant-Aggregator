@@ -7,7 +7,8 @@ import (
 )
 
 type Config struct {
-	ListenAddress string        `env:"LISTEN_ADDRESS" defaultEnv:":8080"`
+	ListenAddress string        `env:"LISTEN_ADDRESS" envDefault:":8080"`
+	DatabaseURL   string        `env:"DATABASE_URL,required"`
 	ReadTimeout   time.Duration `env:"READ_TIMEOUT" envDefault:"2s"`
 	WriteTimeout  time.Duration `env:"WRITE_TIMEOUT" envDefault:"10s"`
 	ShutdownGrace time.Duration `env:"SHUTDOWN_TIMEOUT" envDefault:"5s"`
