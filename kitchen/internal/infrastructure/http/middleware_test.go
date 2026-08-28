@@ -56,3 +56,25 @@ func TestIdempotencyKeyMiddleware_AddsHeaderToContext(t *testing.T) {
 	req.Header.Set(idempotencyKeyHeader, "request-key")
 	handler.ServeHTTP(httptest.NewRecorder(), req)
 }
+
+func TestIdempotencyKeyMiddleware_RejectsEmptyHeader(t *testing.T) {
+	t.Parallel()
+
+	handler := IdempotencyKeyMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("next handler must not be called")
+	}))
+
+	for _, key := range []string{"", "   "} {
+		t.Run("key="+key, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/", nil)
+			req.Header.Set(idempotencyKeyHeader, key)
+			res := httptest.NewRecorder()
+
+			handler.ServeHTTP(res, req)
+
+			if res.Code != http.StatusBadRequest {
+				t.Errorf("status = %d, want %d", res.Code, http.StatusBadRequest)
+			}
+		})
+	}
+}

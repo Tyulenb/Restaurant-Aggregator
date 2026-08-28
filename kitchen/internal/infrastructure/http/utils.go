@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 )
 
 func ParseJSON(r *http.Request, payload any) error {
@@ -28,4 +29,37 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 		Code    string `json:"code"`
 		Message string `json:"message"`
 	}{Code: code, Message: message})
+}
+
+func EstablishmentID(w http.ResponseWriter, r *http.Request) (string, bool) {
+	establishmentID, ok := r.Context().Value(EstablishmentIDContextKey).(string)
+	if !ok || establishmentID == "" {
+		WriteUnauthorized(w)
+		return "", false
+	}
+	return establishmentID, true
+}
+
+func OptionalBoolQuery(r *http.Request, name string) (bool, error) {
+	value := r.URL.Query().Get(name)
+	if value == "" {
+		return false, nil
+	}
+	return strconv.ParseBool(value)
+}
+
+func WriteBadRequest(w http.ResponseWriter) {
+	WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "Request syntax or parameter format is invalid.")
+}
+
+func WriteValidationError(w http.ResponseWriter) {
+	WriteError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed.")
+}
+
+func WriteNotFound(w http.ResponseWriter) {
+	WriteError(w, http.StatusNotFound, "NOT_FOUND", "Resource not found.")
+}
+
+func WriteUnauthorized(w http.ResponseWriter) {
+	WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Missing or invalid partner API key.")
 }

@@ -18,7 +18,7 @@ func EstablishmentAuthMiddleware(expectedHash, establishmentID string) func(http
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			incomingHash, hasBearerPrefix := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 			if !hasBearerPrefix || subtle.ConstantTimeCompare([]byte(incomingHash), []byte(expectedHash)) != 1 {
-				WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Missing or invalid partner API key.")
+				WriteUnauthorized(w)
 				return
 			}
 
@@ -30,7 +30,13 @@ func EstablishmentAuthMiddleware(expectedHash, establishmentID string) func(http
 
 func IdempotencyKeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), IdempotencyKeyContextKey, r.Header.Get(idempotencyKeyHeader))
+		idempotencyKey := strings.TrimSpace(r.Header.Get(idempotencyKeyHeader))
+		if idempotencyKey == "" {
+			WriteBadRequest(w)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), IdempotencyKeyContextKey, idempotencyKey)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
