@@ -1,4 +1,4 @@
-package infra_httpserver
+package infrahttp
 
 import (
 	"context"
