@@ -20,7 +20,7 @@ func SetupPostgres(ctx context.Context, pool *pgxpool.Pool) error {
 		return fmt.Errorf("failed to set postgres dialect in goose: %w", err)
 	}
 
-	goose.SetTableName("onboarding_goose_db_version")
+	goose.SetTableName("avitokitchen_goose_db_version")
 
 	db := stdlib.OpenDBFromPool(pool)
 	defer func() {
