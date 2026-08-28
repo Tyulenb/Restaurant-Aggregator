@@ -2,10 +2,13 @@ package adapterhttp
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 
+	"github.com/google/uuid"
 	infrahttp "github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/infrastructure/http"
+	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/domain"
 )
 
@@ -15,82 +18,139 @@ type CustomerOrderUsecase interface {
 	CancelOrder(ctx context.Context, orderId string) (*domain.Order, error)
 }
 
-// Handle routes belong to customer.
+// CustomerHandler handles customer order routes.
 type CustomerHandler struct {
 	logger  *slog.Logger
 	usecase CustomerOrderUsecase
 }
 
-func NewOrderHandler(logger *slog.Logger) *CustomerHandler {
-	return &CustomerHandler{
-		logger: logger,
-	}
+func NewOrderHandler(logger *slog.Logger, usecase CustomerOrderUsecase) *CustomerHandler {
+	return &CustomerHandler{logger: logger, usecase: usecase}
 }
 
 func (h *CustomerHandler) RegisterRoutes(router *http.ServeMux) {
 	router.HandleFunc("POST /api/v1/orders", h.createOrder)
 	router.HandleFunc("GET /api/v1/orders/{orderId}", h.getOrder)
-	router.HandleFunc("GET /api/v1/orders/{orderId}/cancel", h.cancelOrder)
+	router.HandleFunc("POST /api/v1/orders/{orderId}/cancel", h.cancelOrder)
 }
 
 func (h *CustomerHandler) createOrder(w http.ResponseWriter, r *http.Request) {
-	orderReq := new(CreateOrderRequest)
-	err := infrahttp.ParseJSON(r, orderReq)
-	if err != nil {
-		h.logger.Error("Create order parsing data", "error", err)
-		infrahttp.WriteError(w, http.StatusBadRequest, "BAD REQUEST", "Error validating request body.")
+	request := new(CreateOrderRequest)
+	if err := infrahttp.ParseJSON(r, request); err != nil {
+		writeBadRequest(w)
 		return
 	}
 
-	idempotencyKey, ok := r.Context().Value("idempotencyKey").(string)
+	idempotencyKey, ok := r.Context().Value(infrahttp.IdempotencyKeyContextKey).(string)
 	if !ok {
-		h.logger.Error("Create order missing idempotencyKey", "error", err)
-		infrahttp.WriteError(w, http.StatusBadRequest, "BAD REQUEST", "Error validating request body.")
+		writeBadRequest(w)
 		return
 	}
-	domainOrderItems := make([]domain.CreateOrderItem, 0, len(orderReq.Items))
-	for _, item := range orderReq.Items {
-		domainOrderItems = append(domainOrderItems, toDomainCreateOrderItem(item))
+	if _, err := uuid.Parse(idempotencyKey); err != nil {
+		writeBadRequest(w)
+		return
 	}
-	domainOrder, err := h.usecase.CreateOrder(r.Context(), orderReq.EstablishmentID, idempotencyKey, domainOrderItems)
+	if !validCreateOrderRequest(request) {
+		writeValidationError(w)
+		return
+	}
+
+	items := make([]domain.CreateOrderItem, 0, len(request.Items))
+	for _, item := range request.Items {
+		items = append(items, toDomainCreateOrderItem(item))
+	}
+	order, err := h.usecase.CreateOrder(r.Context(), request.EstablishmentID, idempotencyKey, items)
 	if err != nil {
-		h.logger.Error("Create order parsing data", "error", err)
-		infrahttp.WriteError(w, http.StatusInternalServerError, "BAD REQUEST", "Error validating request body.")
+		h.writeUseCaseError(w, "create order", err)
 		return
 	}
-	dtoOrder := domainOrderToDTO(*domainOrder)
-	infrahttp.WriteJSON(w, http.StatusCreated, dtoOrder)
+	if order == nil {
+		h.writeUseCaseError(w, "create order", errors.New("use case returned a nil order"))
+		return
+	}
+
+	w.Header().Set("Location", "/api/v1/orders/"+order.ID)
+	infrahttp.WriteJSON(w, http.StatusCreated, domainOrderToDTO(*order))
 }
 
 func (h *CustomerHandler) getOrder(w http.ResponseWriter, r *http.Request) {
-	orderId := r.PathValue("orderId")
-	domainOrder, err := h.usecase.FindOrder(r.Context(), orderId)
+	order, err := h.usecase.FindOrder(r.Context(), r.PathValue("orderId"))
 	if err != nil {
-		h.logger.Error("Get order", "error", err)
-		infrahttp.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error.")
+		h.writeUseCaseError(w, "get order", err)
 		return
 	}
-	dtoOrder := domainOrderToDTO(*domainOrder)
-	infrahttp.WriteJSON(w, http.StatusOK, dtoOrder)
+	if order == nil {
+		writeNotFound(w)
+		return
+	}
+	infrahttp.WriteJSON(w, http.StatusOK, domainOrderToDTO(*order))
 }
 
 func (h *CustomerHandler) cancelOrder(w http.ResponseWriter, r *http.Request) {
-	orderId := r.PathValue("orderId")
-	domainOrder, err := h.usecase.CancelOrder(r.Context(), orderId)
+	order, err := h.usecase.CancelOrder(r.Context(), r.PathValue("orderId"))
 	if err != nil {
-		h.logger.Error("Cancel order", "error", err)
-		infrahttp.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error.")
+		h.writeUseCaseError(w, "cancel order", err)
 		return
 	}
-	dtoOrder := domainOrderToDTO(*domainOrder)
-	infrahttp.WriteJSON(w, http.StatusOK, dtoOrder)
+	if order == nil {
+		writeNotFound(w)
+		return
+	}
+	infrahttp.WriteJSON(w, http.StatusOK, domainOrderToDTO(*order))
+}
+
+func (h *CustomerHandler) writeUseCaseError(w http.ResponseWriter, operation string, err error) {
+	h.logger.Error(operation, "error", err)
+	switch {
+	case errors.Is(err, application.ErrOrderNotFound),
+		errors.Is(err, application.ErrProductDeleted),
+		errors.Is(err, application.ErrProductFromOtherEstablishment):
+		writeNotFound(w)
+	case errors.Is(err, application.ErrEmptyOrder), errors.Is(err, application.ErrInvalidItemQuantity):
+		writeValidationError(w)
+	case errors.Is(err, application.ErrProductUnavailable):
+		infrahttp.WriteError(w, http.StatusConflict, "PRODUCT_UNAVAILABLE", "Product is unavailable.")
+	case errors.Is(err, application.ErrInsufficientStock):
+		infrahttp.WriteError(w, http.StatusConflict, "INSUFFICIENT_STOCK", "Requested quantity is not available.")
+	case errors.Is(err, application.ErrIdempotencyConflict):
+		infrahttp.WriteError(w, http.StatusConflict, "IDEMPOTENCY_CONFLICT", "Idempotency key was already used for another request.")
+	case errors.Is(err, application.ErrOrderCannotBeCancelled):
+		writeInvalidTransition(w)
+	default:
+		infrahttp.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error.")
+	}
+}
+
+func validCreateOrderRequest(request *CreateOrderRequest) bool {
+	if _, err := uuid.Parse(request.EstablishmentID); err != nil || len(request.Items) == 0 || len(request.Items) > 100 {
+		return false
+	}
+	for _, item := range request.Items {
+		if _, err := uuid.Parse(item.ProductID); err != nil || item.Quantity < 1 {
+			return false
+		}
+	}
+	return true
+}
+
+func writeBadRequest(w http.ResponseWriter) {
+	infrahttp.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "Request syntax or parameter format is invalid.")
+}
+
+func writeValidationError(w http.ResponseWriter) {
+	infrahttp.WriteError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed.")
+}
+
+func writeNotFound(w http.ResponseWriter) {
+	infrahttp.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Resource not found.")
+}
+
+func writeInvalidTransition(w http.ResponseWriter) {
+	infrahttp.WriteError(w, http.StatusConflict, "INVALID_ORDER_STATE_TRANSITION", "Requested order state transition is not allowed.")
 }
 
 func toDomainCreateOrderItem(item CreateOrderItem) domain.CreateOrderItem {
-	return domain.CreateOrderItem{
-		ProductID: item.ProductID,
-		Quantity:  item.Quantity,
-	}
+	return domain.CreateOrderItem{ProductID: item.ProductID, Quantity: item.Quantity}
 }
 
 func domainOrderToDTO(order domain.Order) Order {
@@ -99,27 +159,15 @@ func domainOrderToDTO(order domain.Order) Order {
 		items = append(items, domainOrderItemToDTO(item))
 	}
 	return Order{
-		ID:              order.ID,
-		EstablishmentID: order.EstablishmentID,
-		CustomerID:      order.CustomerID,
-		DeliveryID:      order.DeliveryID,
-		Status:          order.Status,
-		TotalPrice:      order.TotalPrice,
-		RejectionReason: order.RejectionReason,
-		Items:           items,
-		CreatedAt:       order.CreatedAt,
-		UpdatedAt:       order.UpdatedAt,
+		ID: order.ID, EstablishmentID: order.EstablishmentID, CustomerID: order.CustomerID,
+		DeliveryID: order.DeliveryID, StatusID: int(order.StatusID), TotalPrice: order.TotalPrice,
+		RejectionReason: order.RejectionReason, Items: items, CreatedAt: order.CreatedAt, UpdatedAt: order.UpdatedAt,
 	}
 }
 
 func domainOrderItemToDTO(item domain.OrderItem) OrderItem {
 	return OrderItem{
-		ID:                item.ID,
-		ProductID:         item.ProductID,
-		ExternalProductID: item.ExternalProductID,
-		ProductName:       item.ProductName,
-		UnitPrice:         item.UnitPrice,
-		Quantity:          item.Quantity,
-		TotalSum:          item.TotalSum,
+		ID: item.ID, ProductID: item.ProductID, ExternalProductID: item.ExternalProductID,
+		ProductName: item.ProductName, UnitPrice: item.UnitPrice, Quantity: item.Quantity, TotalSum: item.TotalSum,
 	}
 }

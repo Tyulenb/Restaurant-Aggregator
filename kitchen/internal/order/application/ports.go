@@ -11,6 +11,8 @@ type OrderRepository interface {
 	FindOrderById(ctx context.Context, orderID string) (*domain.Order, error)
 	FindOrderByIdempotencyKey(ctx context.Context, idempotencyKey string) (*domain.Order, error)
 
+	FindNewOrdersByEstablishmentId(ctx context.Context, establishmentID string) ([]domain.Order, error)
+
 	UpdateOrderStatus(ctx context.Context, orderID string, status int) (*domain.Order, error)
 }
 

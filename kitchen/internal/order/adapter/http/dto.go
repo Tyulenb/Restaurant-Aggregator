@@ -20,7 +20,7 @@ type Order struct {
 	EstablishmentID string      `json:"establishment_id"`
 	CustomerID      string      `json:"customer_id"`
 	DeliveryID      string      `json:"delivery_id"`
-	Status          string      `json:"status"`
+	StatusID        int         `json:"status_id"`
 	TotalPrice      float32     `json:"total_price"`
 	RejectionReason *string     `json:"rejection_reason"`
 	Items           []OrderItem `json:"items"`
@@ -51,5 +51,5 @@ type RejectOrderRequest struct {
 
 // UpdateOrderStatusRequest advances an accepted order through processing.
 type UpdateOrderStatusRequest struct {
-	Status string `json:"status"`
+	Status int `json:"status_id"`
 }

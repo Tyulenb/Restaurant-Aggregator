@@ -2,6 +2,13 @@ package domain
 
 import "time"
 
+type InventoryType int
+
+const (
+	Finite    InventoryType = 1
+	Unlimited InventoryType = 2
+)
+
 type Product struct {
 	ID              string
 	ExternalID      string
@@ -10,7 +17,7 @@ type Product struct {
 	Name            string
 	Description     *string
 	Available       bool
-	InventoryTypeID int
+	InventoryTypeID InventoryType
 	Quantity        *int
 	Price           float32
 	CreatedAt       time.Time

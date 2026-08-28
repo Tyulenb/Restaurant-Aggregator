@@ -10,13 +10,6 @@ import (
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/domain"
 )
 
-const (
-	finiteInventoryTypeID  = 1
-	createdOrderStatus     = "created"
-	cancelledOrderStatus   = "cancelled"
-	cancelledOrderStatusID = 7
-)
-
 var (
 	ErrOrderNotFound                 = errors.New("order not found")
 	ErrEmptyOrder                    = errors.New("order must contain at least one item")
@@ -84,7 +77,7 @@ func (cu *CustomerUseCase) CreateOrder(ctx context.Context, establishmentID, ide
 		if !product.Available {
 			return nil, fmt.Errorf("%w: %s", ErrProductUnavailable, productID)
 		}
-		if product.InventoryTypeID == finiteInventoryTypeID &&
+		if product.InventoryTypeID == domain.Finite &&
 			(product.Quantity == nil || requestedQuantity > *product.Quantity) {
 			return nil, fmt.Errorf("%w: product %s, requested %d", ErrInsufficientStock, productID, requestedQuantity)
 		}
@@ -100,7 +93,7 @@ func (cu *CustomerUseCase) CreateOrder(ctx context.Context, establishmentID, ide
 		EstablishmentID: establishmentID,
 		CustomerID:      placeholderID,
 		DeliveryID:      placeholderID,
-		Status:          createdOrderStatus,
+		StatusID:        domain.OrderCreated,
 		Items:           make([]domain.OrderItem, 0, len(requestedQuantities)),
 		CreatedAt:       now,
 		UpdatedAt:       now,
@@ -147,18 +140,18 @@ func (cu *CustomerUseCase) CancelOrder(ctx context.Context, orderID string) (*do
 		return nil, ErrOrderNotFound
 	}
 
-	switch order.Status {
-	case cancelledOrderStatus:
+	switch order.StatusID {
+	case domain.OrderCanceled:
 		return order, nil
-	case createdOrderStatus, "pending":
-		cancelledOrder, updateErr := cu.OrderRepo.UpdateOrderStatus(ctx, orderID, cancelledOrderStatusID)
+	case domain.OrderCreated:
+		cancelledOrder, updateErr := cu.OrderRepo.UpdateOrderStatus(ctx, orderID, int(domain.OrderCanceled))
 		if updateErr != nil {
 			return nil, fmt.Errorf("cancel order %q: %w", orderID, updateErr)
 		}
 
 		return cancelledOrder, nil
 	default:
-		return nil, fmt.Errorf("%w: current status %q", ErrOrderCannotBeCancelled, order.Status)
+		return nil, fmt.Errorf("%w: current StatusID %d", ErrOrderCannotBeCancelled, order.StatusID)
 	}
 }
 

@@ -33,7 +33,7 @@ func (s *customerOrderUsecaseStub) CancelOrder(_ context.Context, orderId string
 func TestCustomerHandler_GetOrder(t *testing.T) {
 	t.Parallel()
 
-	usecase := &customerOrderUsecaseStub{findOrder: &domain.Order{ID: "order-id", Status: "pending"}}
+	usecase := &customerOrderUsecaseStub{findOrder: &domain.Order{ID: "order-id", StatusID: 1}}
 	handler := &CustomerHandler{logger: slog.Default(), usecase: usecase}
 	router := http.NewServeMux()
 	handler.RegisterRoutes(router)
@@ -42,7 +42,7 @@ func TestCustomerHandler_GetOrder(t *testing.T) {
 	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/orders/order-id", nil))
 
 	if response.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", response.Code, http.StatusOK)
+		t.Errorf("StatusID = %d, want %d", response.Code, http.StatusOK)
 	}
 	if usecase.orderId != "order-id" {
 		t.Errorf("order ID = %q, want order-id", usecase.orderId)
@@ -52,16 +52,16 @@ func TestCustomerHandler_GetOrder(t *testing.T) {
 func TestCustomerHandler_CancelOrder(t *testing.T) {
 	t.Parallel()
 
-	usecase := &customerOrderUsecaseStub{cancelOrder: &domain.Order{ID: "order-id", Status: "cancelled"}}
+	usecase := &customerOrderUsecaseStub{cancelOrder: &domain.Order{ID: "order-id", StatusID: 7}}
 	handler := &CustomerHandler{logger: slog.Default(), usecase: usecase}
 	router := http.NewServeMux()
 	handler.RegisterRoutes(router)
 
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/orders/order-id/cancel", nil))
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/v1/orders/order-id/cancel", nil))
 
 	if response.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", response.Code, http.StatusOK)
+		t.Errorf("StatusID = %d, want %d", response.Code, http.StatusOK)
 	}
 	if usecase.orderId != "order-id" {
 		t.Errorf("order ID = %q, want order-id", usecase.orderId)
