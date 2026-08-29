@@ -8,12 +8,12 @@ import (
 
 	"github.com/google/uuid"
 	infrahttp "github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/infrastructure/http"
-	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application"
+	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application/customer"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/domain"
 )
 
 type CustomerOrderUsecase interface {
-	CreateOrder(ctx context.Context, establishmentId, idempotencyKey string, orderItem []domain.CreateOrderItem) (*domain.Order, error)
+	CreateOrder(ctx context.Context, establishmentId, idempotencyKey string, orderItem []customer.CreateOrderItem) (*domain.Order, error)
 	FindOrder(ctx context.Context, orderId string) (*domain.Order, error)
 	CancelOrder(ctx context.Context, orderId string) (*domain.Order, error)
 }
@@ -55,7 +55,7 @@ func (h *CustomerHandler) createOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	items := make([]domain.CreateOrderItem, 0, len(request.Items))
+	items := make([]customer.CreateOrderItem, 0, len(request.Items))
 	for _, item := range request.Items {
 		items = append(items, toDomainCreateOrderItem(item))
 	}
@@ -102,19 +102,19 @@ func (h *CustomerHandler) cancelOrder(w http.ResponseWriter, r *http.Request) {
 func (h *CustomerHandler) writeUseCaseError(w http.ResponseWriter, operation string, err error) {
 	h.logger.Error(operation, "error", err)
 	switch {
-	case errors.Is(err, application.ErrOrderNotFound),
-		errors.Is(err, application.ErrProductDeleted),
-		errors.Is(err, application.ErrProductFromOtherEstablishment):
+	case errors.Is(err, domain.ErrOrderNotFound),
+		errors.Is(err, domain.ErrProductDeleted),
+		errors.Is(err, domain.ErrProductFromOtherEstablishment):
 		writeNotFound(w)
-	case errors.Is(err, application.ErrEmptyOrder), errors.Is(err, application.ErrInvalidItemQuantity):
+	case errors.Is(err, domain.ErrEmptyOrder), errors.Is(err, domain.ErrInvalidItemQuantity):
 		writeValidationError(w)
-	case errors.Is(err, application.ErrProductUnavailable):
+	case errors.Is(err, domain.ErrProductUnavailable):
 		infrahttp.WriteError(w, http.StatusConflict, "PRODUCT_UNAVAILABLE", "Product is unavailable.")
-	case errors.Is(err, application.ErrInsufficientStock):
+	case errors.Is(err, domain.ErrInsufficientStock):
 		infrahttp.WriteError(w, http.StatusConflict, "INSUFFICIENT_STOCK", "Requested quantity is not available.")
-	case errors.Is(err, application.ErrIdempotencyConflict):
+	case errors.Is(err, domain.ErrIdempotencyConflict):
 		infrahttp.WriteError(w, http.StatusConflict, "IDEMPOTENCY_CONFLICT", "Idempotency key was already used for another request.")
-	case errors.Is(err, application.ErrOrderCannotBeCancelled):
+	case errors.Is(err, domain.ErrOrderCannotBeCancelled):
 		writeInvalidTransition(w)
 	default:
 		infrahttp.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error.")
@@ -149,8 +149,8 @@ func writeInvalidTransition(w http.ResponseWriter) {
 	infrahttp.WriteError(w, http.StatusConflict, "INVALID_ORDER_STATE_TRANSITION", "Requested order state transition is not allowed.")
 }
 
-func toDomainCreateOrderItem(item CreateOrderItem) domain.CreateOrderItem {
-	return domain.CreateOrderItem{ProductID: item.ProductID, Quantity: item.Quantity}
+func toDomainCreateOrderItem(item CreateOrderItem) customer.CreateOrderItem {
+	return customer.CreateOrderItem{ProductID: item.ProductID, Quantity: item.Quantity}
 }
 
 func domainOrderToDTO(order domain.Order) Order {

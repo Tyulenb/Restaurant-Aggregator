@@ -1,21 +1,22 @@
-package application
+package partner
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/domain"
 )
 
-var ErrInvalidOrderTransition = errors.New("requested order state transition is not allowed")
-
 type PartnerUseCase struct {
 	OrderRepo OrderRepository
+	Tx        Transactor
 }
 
-func NewPartnerUseCase(orderRepo OrderRepository) *PartnerUseCase {
-	return &PartnerUseCase{OrderRepo: orderRepo}
+func NewPartnerUseCase(orderRepo OrderRepository, tx Transactor) *PartnerUseCase {
+	return &PartnerUseCase{
+		OrderRepo: orderRepo,
+		Tx:        tx,
+	}
 }
 
 func (pu *PartnerUseCase) FindNewOrdersByEstablishmentId(ctx context.Context, establishmentID string) ([]domain.Order, error) {
@@ -28,42 +29,53 @@ func (pu *PartnerUseCase) FindNewOrdersByEstablishmentId(ctx context.Context, es
 }
 
 func (pu *PartnerUseCase) FindOrderByOrderIdAndEstablishmentId(ctx context.Context, orderID, establishmentID string) (*domain.Order, error) {
-	order, err := pu.OrderRepo.FindOrderById(ctx, orderID)
+	order, err := pu.OrderRepo.FindOrderByIdForUpdate(ctx, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("find order %q: %w", orderID, err)
 	}
 	if order == nil || order.EstablishmentID != establishmentID {
-		return nil, ErrOrderNotFound
+		return nil, domain.ErrOrderNotFound
 	}
 
 	return order, nil
 }
 
+// Find order + update order status in one transaction
 func (pu *PartnerUseCase) ChangeOrderStatus(ctx context.Context, orderID, establishmentID string, statusID int) (*domain.Order, error) {
-	order, err := pu.FindOrderByOrderIdAndEstablishmentId(ctx, orderID, establishmentID)
-	if err != nil {
-		return nil, err
+	if pu.Tx == nil {
+		return nil, fmt.Errorf("change order status: transactor is not configured")
 	}
+	var updatedOrder *domain.Order
+	err := pu.Tx.WithTx(ctx, func(ctx context.Context) error {
+		order, err := pu.FindOrderByOrderIdAndEstablishmentId(ctx, orderID, establishmentID)
+		if err != nil {
+			return err
+		}
+		requestedStatus := domain.OrderStatusID(statusID)
+		if !isPartnerTargetStatus(requestedStatus) {
+			return fmt.Errorf("%w: unsupported requested status %d", domain.ErrInvalidOrderTransition, requestedStatus)
+		}
+		if order.StatusID == requestedStatus {
+			updatedOrder = order
+			return nil
+		}
+		if !isAllowedPartnerTransition(order.StatusID, requestedStatus) {
+			return fmt.Errorf(
+				"%w: current status %d, requested status %d",
+				domain.ErrInvalidOrderTransition,
+				order.StatusID,
+				requestedStatus,
+			)
+		}
 
-	requestedStatus := domain.OrderStatusID(statusID)
-	if !isPartnerTargetStatus(requestedStatus) {
-		return nil, fmt.Errorf("%w: unsupported requested status %d", ErrInvalidOrderTransition, requestedStatus)
-	}
-	if order.StatusID == requestedStatus {
-		return order, nil
-	}
-	if !isAllowedPartnerTransition(order.StatusID, requestedStatus) {
-		return nil, fmt.Errorf(
-			"%w: current status %d, requested status %d",
-			ErrInvalidOrderTransition,
-			order.StatusID,
-			requestedStatus,
-		)
-	}
-
-	updatedOrder, err := pu.OrderRepo.UpdateOrderStatus(ctx, orderID, statusID)
+		updatedOrder, err = pu.OrderRepo.UpdateOrderStatus(ctx, orderID, statusID)
+		if err != nil {
+			return fmt.Errorf("update order %q status: %w", orderID, err)
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("update order %q status: %w", orderID, err)
+		return nil, fmt.Errorf("change order %q status: %w", orderID, err)
 	}
 
 	return updatedOrder, nil

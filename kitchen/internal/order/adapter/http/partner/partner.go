@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	infrahttp "github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/infrastructure/http"
-	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/domain"
 )
 
@@ -114,9 +113,9 @@ func (h *PartnerHandler) changeToStatus(w http.ResponseWriter, r *http.Request, 
 func (h *PartnerHandler) writeUseCaseError(w http.ResponseWriter, operation string, err error) {
 	h.logger.Error(operation, "error", err)
 	switch {
-	case errors.Is(err, application.ErrOrderNotFound):
+	case errors.Is(err, domain.ErrOrderNotFound):
 		infrahttp.WriteNotFound(w)
-	case errors.Is(err, application.ErrInvalidOrderTransition):
+	case errors.Is(err, domain.ErrInvalidOrderTransition):
 		writeInvalidTransition(w)
 	default:
 		infrahttp.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error.")

@@ -8,10 +8,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	transactor "github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/infrastructure/postgres"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/adapter/postgres/product/sqlc"
+	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application/customer"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/domain"
 )
+
+var _ customer.ProductRepository = (*ProductRepository)(nil)
 
 type ProductRepository struct {
 	queries *sqlc.Queries
@@ -49,6 +53,42 @@ func (r *ProductRepository) FindProductById(ctx context.Context, productID strin
 	}
 
 	return &product, nil
+}
+
+func (r *ProductRepository) FindProductByIdForUpdate(ctx context.Context, productID string) (*domain.Product, error) {
+	id, err := uuid.Parse(productID)
+	if err != nil {
+		return nil, fmt.Errorf("parse product ID: %w", err)
+	}
+	row, err := r.getQueries(ctx).SelectProductByIDForUpdate(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("select product by ID for update: %w", err)
+	}
+	product, err := toDomain(row)
+	if err != nil {
+		return nil, fmt.Errorf("convert product selected for update: %w", err)
+	}
+	return &product, nil
+}
+
+func (r *ProductRepository) DecrementProductQuantity(ctx context.Context, productID string, quantity int) error {
+	id, err := uuid.Parse(productID)
+	if err != nil {
+		return fmt.Errorf("parse product ID: %w", err)
+	}
+	rows, err := r.getQueries(ctx).DecrementProductQuantity(ctx, sqlc.DecrementProductQuantityParams{
+		ID: id, Quantity: pgtype.Int4{Int32: int32(quantity), Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("decrement product quantity: %w", err)
+	}
+	if rows != 1 {
+		return domain.ErrInsufficientStock
+	}
+	return nil
 }
 
 func toDomain(row sqlc.Product) (domain.Product, error) {

@@ -9,7 +9,30 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const decrementProductQuantity = `-- name: DecrementProductQuantity :execrows
+UPDATE product
+SET quantity = quantity - $2,
+    updated_at = NOW()
+WHERE id = $1
+  AND inventory_type_id = 1
+  AND quantity >= $2
+`
+
+type DecrementProductQuantityParams struct {
+	ID       uuid.UUID   `json:"id"`
+	Quantity pgtype.Int4 `json:"quantity"`
+}
+
+func (q *Queries) DecrementProductQuantity(ctx context.Context, arg DecrementProductQuantityParams) (int64, error) {
+	result, err := q.db.Exec(ctx, decrementProductQuantity, arg.ID, arg.Quantity)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
 
 const selectProductByID = `-- name: SelectProductByID :one
 SELECT
@@ -32,6 +55,47 @@ WHERE id = $1
 
 func (q *Queries) SelectProductByID(ctx context.Context, id uuid.UUID) (Product, error) {
 	row := q.db.QueryRow(ctx, selectProductByID, id)
+	var i Product
+	err := row.Scan(
+		&i.ID,
+		&i.ExternalID,
+		&i.EstablishmentID,
+		&i.CategoryID,
+		&i.Name,
+		&i.Description,
+		&i.Available,
+		&i.InventoryTypeID,
+		&i.Quantity,
+		&i.Price,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const selectProductByIDForUpdate = `-- name: SelectProductByIDForUpdate :one
+SELECT
+    id,
+    external_id,
+    establishment_id,
+    category_id,
+    name,
+    description,
+    available,
+    inventory_type_id,
+    quantity,
+    price,
+    created_at,
+    updated_at,
+    deleted_at
+FROM product
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) SelectProductByIDForUpdate(ctx context.Context, id uuid.UUID) (Product, error) {
+	row := q.db.QueryRow(ctx, selectProductByIDForUpdate, id)
 	var i Product
 	err := row.Scan(
 		&i.ID,

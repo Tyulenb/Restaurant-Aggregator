@@ -81,6 +81,52 @@ func (q *Queries) InsertOrder(ctx context.Context, arg InsertOrderParams) (Order
 	return i, err
 }
 
+const insertOrderItem = `-- name: InsertOrderItem :one
+INSERT INTO order_item (
+    id, order_id, product_id, external_product_id, product_name,
+    unit_price, quantity, total_sum
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, order_id, product_id, external_product_id, product_name,
+    unit_price, quantity, total_sum
+`
+
+type InsertOrderItemParams struct {
+	ID                uuid.UUID      `json:"id"`
+	OrderID           uuid.UUID      `json:"order_id"`
+	ProductID         uuid.UUID      `json:"product_id"`
+	ExternalProductID string         `json:"external_product_id"`
+	ProductName       string         `json:"product_name"`
+	UnitPrice         pgtype.Numeric `json:"unit_price"`
+	Quantity          int32          `json:"quantity"`
+	TotalSum          pgtype.Numeric `json:"total_sum"`
+}
+
+func (q *Queries) InsertOrderItem(ctx context.Context, arg InsertOrderItemParams) (OrderItem, error) {
+	row := q.db.QueryRow(ctx, insertOrderItem,
+		arg.ID,
+		arg.OrderID,
+		arg.ProductID,
+		arg.ExternalProductID,
+		arg.ProductName,
+		arg.UnitPrice,
+		arg.Quantity,
+		arg.TotalSum,
+	)
+	var i OrderItem
+	err := row.Scan(
+		&i.ID,
+		&i.OrderID,
+		&i.ProductID,
+		&i.ExternalProductID,
+		&i.ProductName,
+		&i.UnitPrice,
+		&i.Quantity,
+		&i.TotalSum,
+	)
+	return i, err
+}
+
 const selectCreatedOrdersByEstablishmentID = `-- name: SelectCreatedOrdersByEstablishmentID :many
 SELECT
     id,
@@ -164,6 +210,41 @@ func (q *Queries) SelectOrderByID(ctx context.Context, id uuid.UUID) (Order, err
 	return i, err
 }
 
+const selectOrderByIDForUpdate = `-- name: SelectOrderByIDForUpdate :one
+SELECT
+    id,
+    idempotency_key,
+    establishment_id,
+    customer_id,
+    delivery_id,
+    status_id,
+    total_price,
+    rejection_reason,
+    created_at,
+    updated_at
+FROM orders
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) SelectOrderByIDForUpdate(ctx context.Context, id uuid.UUID) (Order, error) {
+	row := q.db.QueryRow(ctx, selectOrderByIDForUpdate, id)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.IdempotencyKey,
+		&i.EstablishmentID,
+		&i.CustomerID,
+		&i.DeliveryID,
+		&i.StatusID,
+		&i.TotalPrice,
+		&i.RejectionReason,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const selectOrderByIdempotencyKey = `-- name: SelectOrderByIdempotencyKey :one
 SELECT
     id,
@@ -196,6 +277,43 @@ func (q *Queries) SelectOrderByIdempotencyKey(ctx context.Context, idempotencyKe
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const selectOrderItemsByOrderID = `-- name: SelectOrderItemsByOrderID :many
+SELECT id, order_id, product_id, external_product_id, product_name,
+    unit_price, quantity, total_sum
+FROM order_item
+WHERE order_id = $1
+ORDER BY id
+`
+
+func (q *Queries) SelectOrderItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]OrderItem, error) {
+	rows, err := q.db.Query(ctx, selectOrderItemsByOrderID, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []OrderItem
+	for rows.Next() {
+		var i OrderItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrderID,
+			&i.ProductID,
+			&i.ExternalProductID,
+			&i.ProductName,
+			&i.UnitPrice,
+			&i.Quantity,
+			&i.TotalSum,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateOrderStatusByID = `-- name: UpdateOrderStatusByID :one

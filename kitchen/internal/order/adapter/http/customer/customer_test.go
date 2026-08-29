@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application/customer"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/domain"
 )
 
@@ -16,7 +17,7 @@ type customerOrderUsecaseStub struct {
 	orderId     string
 }
 
-func (s *customerOrderUsecaseStub) CreateOrder(context.Context, string, string, []domain.CreateOrderItem) (*domain.Order, error) {
+func (s *customerOrderUsecaseStub) CreateOrder(context.Context, string, string, []customer.CreateOrderItem) (*domain.Order, error) {
 	return nil, nil
 }
 

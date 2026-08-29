@@ -1,18 +1,22 @@
-package application_test
+package partner_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application"
-	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application/mocks"
+	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application/partner"
+	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application/partner/mocks"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/domain"
 )
 
-const orderID = "order-1"
+const (
+	establishmentID = "establishment-1"
+	orderID         = "order-1"
+)
 
 func TestPartnerUseCase_FindNewOrdersByEstablishmentId(t *testing.T) {
 	t.Run("returns repository orders", func(t *testing.T) {
@@ -23,7 +27,7 @@ func TestPartnerUseCase_FindNewOrdersByEstablishmentId(t *testing.T) {
 		orderRepo := mocks.NewMockOrderRepository(t)
 		orderRepo.EXPECT().FindNewOrdersByEstablishmentId(mock.Anything, establishmentID).
 			Return(expected, nil).Once()
-		useCase := application.NewPartnerUseCase(orderRepo)
+		useCase := partner.NewPartnerUseCase(orderRepo, mocks.NewMockTransactor(t))
 
 		orders, err := useCase.FindNewOrdersByEstablishmentId(t.Context(), establishmentID)
 
@@ -36,7 +40,7 @@ func TestPartnerUseCase_FindNewOrdersByEstablishmentId(t *testing.T) {
 		orderRepo := mocks.NewMockOrderRepository(t)
 		orderRepo.EXPECT().FindNewOrdersByEstablishmentId(mock.Anything, establishmentID).
 			Return(nil, repositoryErr).Once()
-		useCase := application.NewPartnerUseCase(orderRepo)
+		useCase := partner.NewPartnerUseCase(orderRepo, mocks.NewMockTransactor(t))
 
 		orders, err := useCase.FindNewOrdersByEstablishmentId(t.Context(), establishmentID)
 
@@ -67,21 +71,21 @@ func TestPartnerUseCase_FindOrderByOrderIdAndEstablishmentId(t *testing.T) {
 		{
 			name:            "missing order",
 			establishmentID: establishmentID,
-			wantErr:         application.ErrOrderNotFound,
+			wantErr:         domain.ErrOrderNotFound,
 		},
 		{
 			name:            "order belongs to another establishment",
 			order:           &domain.Order{ID: orderID, EstablishmentID: "establishment-2"},
 			establishmentID: establishmentID,
-			wantErr:         application.ErrOrderNotFound,
+			wantErr:         domain.ErrOrderNotFound,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			orderRepo := mocks.NewMockOrderRepository(t)
-			orderRepo.EXPECT().FindOrderById(mock.Anything, orderID).Return(tt.order, tt.repositoryErr).Once()
-			useCase := application.NewPartnerUseCase(orderRepo)
+			orderRepo.EXPECT().FindOrderByIdForUpdate(mock.Anything, orderID).Return(tt.order, tt.repositoryErr).Once()
+			useCase := partner.NewPartnerUseCase(orderRepo, mocks.NewMockTransactor(t))
 
 			order, err := useCase.FindOrderByOrderIdAndEstablishmentId(
 				t.Context(), orderID, tt.establishmentID,
@@ -122,9 +126,9 @@ func TestPartnerUseCase_ChangeOrderStatus_AllowsLifecycleTransitions(t *testing.
 			current := &domain.Order{ID: orderID, EstablishmentID: establishmentID, StatusID: tt.from}
 			updated := &domain.Order{ID: orderID, EstablishmentID: establishmentID, StatusID: tt.to}
 			orderRepo := mocks.NewMockOrderRepository(t)
-			orderRepo.EXPECT().FindOrderById(mock.Anything, orderID).Return(current, nil).Once()
+			orderRepo.EXPECT().FindOrderByIdForUpdate(mock.Anything, orderID).Return(current, nil).Once()
 			orderRepo.EXPECT().UpdateOrderStatus(mock.Anything, orderID, int(tt.to)).Return(updated, nil).Once()
-			useCase := application.NewPartnerUseCase(orderRepo)
+			useCase := partner.NewPartnerUseCase(orderRepo, executingTransactor(t))
 
 			order, err := useCase.ChangeOrderStatus(t.Context(), orderID, establishmentID, int(tt.to))
 
@@ -147,8 +151,8 @@ func TestPartnerUseCase_ChangeOrderStatus_IsIdempotentForPartnerStatuses(t *test
 		t.Run(statusName(status), func(t *testing.T) {
 			current := &domain.Order{ID: orderID, EstablishmentID: establishmentID, StatusID: status}
 			orderRepo := mocks.NewMockOrderRepository(t)
-			orderRepo.EXPECT().FindOrderById(mock.Anything, orderID).Return(current, nil).Once()
-			useCase := application.NewPartnerUseCase(orderRepo)
+			orderRepo.EXPECT().FindOrderByIdForUpdate(mock.Anything, orderID).Return(current, nil).Once()
+			useCase := partner.NewPartnerUseCase(orderRepo, executingTransactor(t))
 
 			order, err := useCase.ChangeOrderStatus(t.Context(), orderID, establishmentID, int(status))
 
@@ -169,12 +173,12 @@ func TestPartnerUseCase_ChangeOrderStatus_RejectsUnsupportedTargetStatus(t *test
 		t.Run(statusName(status), func(t *testing.T) {
 			current := &domain.Order{ID: orderID, EstablishmentID: establishmentID, StatusID: domain.OrderCreated}
 			orderRepo := mocks.NewMockOrderRepository(t)
-			orderRepo.EXPECT().FindOrderById(mock.Anything, orderID).Return(current, nil).Once()
-			useCase := application.NewPartnerUseCase(orderRepo)
+			orderRepo.EXPECT().FindOrderByIdForUpdate(mock.Anything, orderID).Return(current, nil).Once()
+			useCase := partner.NewPartnerUseCase(orderRepo, executingTransactor(t))
 
 			order, err := useCase.ChangeOrderStatus(t.Context(), orderID, establishmentID, int(status))
 
-			require.ErrorIs(t, err, application.ErrInvalidOrderTransition)
+			require.ErrorIs(t, err, domain.ErrInvalidOrderTransition)
 			assert.ErrorContains(t, err, "unsupported requested status")
 			assert.Nil(t, order)
 		})
@@ -201,12 +205,12 @@ func TestPartnerUseCase_ChangeOrderStatus_RejectsInvalidLifecycleTransitions(t *
 		t.Run(tt.name, func(t *testing.T) {
 			current := &domain.Order{ID: orderID, EstablishmentID: establishmentID, StatusID: tt.from}
 			orderRepo := mocks.NewMockOrderRepository(t)
-			orderRepo.EXPECT().FindOrderById(mock.Anything, orderID).Return(current, nil).Once()
-			useCase := application.NewPartnerUseCase(orderRepo)
+			orderRepo.EXPECT().FindOrderByIdForUpdate(mock.Anything, orderID).Return(current, nil).Once()
+			useCase := partner.NewPartnerUseCase(orderRepo, executingTransactor(t))
 
 			order, err := useCase.ChangeOrderStatus(t.Context(), orderID, establishmentID, int(tt.to))
 
-			require.ErrorIs(t, err, application.ErrInvalidOrderTransition)
+			require.ErrorIs(t, err, domain.ErrInvalidOrderTransition)
 			assert.ErrorContains(t, err, "current status")
 			assert.Nil(t, order)
 		})
@@ -218,8 +222,8 @@ func TestPartnerUseCase_ChangeOrderStatus_PropagatesLookupAndUpdateErrors(t *tes
 
 	t.Run("lookup", func(t *testing.T) {
 		orderRepo := mocks.NewMockOrderRepository(t)
-		orderRepo.EXPECT().FindOrderById(mock.Anything, orderID).Return(nil, repositoryErr).Once()
-		useCase := application.NewPartnerUseCase(orderRepo)
+		orderRepo.EXPECT().FindOrderByIdForUpdate(mock.Anything, orderID).Return(nil, repositoryErr).Once()
+		useCase := partner.NewPartnerUseCase(orderRepo, executingTransactor(t))
 
 		order, err := useCase.ChangeOrderStatus(
 			t.Context(), orderID, establishmentID, int(domain.OrderAccepted),
@@ -232,24 +236,24 @@ func TestPartnerUseCase_ChangeOrderStatus_PropagatesLookupAndUpdateErrors(t *tes
 	t.Run("order belongs to another establishment", func(t *testing.T) {
 		foreign := &domain.Order{ID: orderID, EstablishmentID: "establishment-2", StatusID: domain.OrderCreated}
 		orderRepo := mocks.NewMockOrderRepository(t)
-		orderRepo.EXPECT().FindOrderById(mock.Anything, orderID).Return(foreign, nil).Once()
-		useCase := application.NewPartnerUseCase(orderRepo)
+		orderRepo.EXPECT().FindOrderByIdForUpdate(mock.Anything, orderID).Return(foreign, nil).Once()
+		useCase := partner.NewPartnerUseCase(orderRepo, executingTransactor(t))
 
 		order, err := useCase.ChangeOrderStatus(
 			t.Context(), orderID, establishmentID, int(domain.OrderAccepted),
 		)
 
-		require.ErrorIs(t, err, application.ErrOrderNotFound)
+		require.ErrorIs(t, err, domain.ErrOrderNotFound)
 		assert.Nil(t, order)
 	})
 
 	t.Run("update", func(t *testing.T) {
 		current := &domain.Order{ID: orderID, EstablishmentID: establishmentID, StatusID: domain.OrderCreated}
 		orderRepo := mocks.NewMockOrderRepository(t)
-		orderRepo.EXPECT().FindOrderById(mock.Anything, orderID).Return(current, nil).Once()
+		orderRepo.EXPECT().FindOrderByIdForUpdate(mock.Anything, orderID).Return(current, nil).Once()
 		orderRepo.EXPECT().UpdateOrderStatus(mock.Anything, orderID, int(domain.OrderAccepted)).
 			Return(nil, repositoryErr).Once()
-		useCase := application.NewPartnerUseCase(orderRepo)
+		useCase := partner.NewPartnerUseCase(orderRepo, executingTransactor(t))
 
 		order, err := useCase.ChangeOrderStatus(
 			t.Context(), orderID, establishmentID, int(domain.OrderAccepted),
@@ -259,6 +263,44 @@ func TestPartnerUseCase_ChangeOrderStatus_PropagatesLookupAndUpdateErrors(t *tes
 		assert.ErrorContains(t, err, `update order "`+orderID+`" status`)
 		assert.Nil(t, order)
 	})
+}
+
+func TestPartnerUseCase_ChangeOrderStatus_RequiresAndPropagatesTransaction(t *testing.T) {
+	t.Run("missing transactor", func(t *testing.T) {
+		useCase := partner.NewPartnerUseCase(mocks.NewMockOrderRepository(t), nil)
+
+		order, err := useCase.ChangeOrderStatus(
+			t.Context(), orderID, establishmentID, int(domain.OrderAccepted),
+		)
+
+		require.ErrorContains(t, err, "transactor is not configured")
+		assert.Nil(t, order)
+	})
+
+	t.Run("transaction error", func(t *testing.T) {
+		transactionErr := errors.New("begin transaction")
+		tx := mocks.NewMockTransactor(t)
+		tx.EXPECT().WithTx(mock.Anything, mock.Anything).Return(transactionErr).Once()
+		useCase := partner.NewPartnerUseCase(mocks.NewMockOrderRepository(t), tx)
+
+		order, err := useCase.ChangeOrderStatus(
+			t.Context(), orderID, establishmentID, int(domain.OrderAccepted),
+		)
+
+		require.ErrorIs(t, err, transactionErr)
+		assert.ErrorContains(t, err, `change order "`+orderID+`" status`)
+		assert.Nil(t, order)
+	})
+}
+
+func executingTransactor(t *testing.T) *mocks.MockTransactor {
+	t.Helper()
+	tx := mocks.NewMockTransactor(t)
+	tx.EXPECT().WithTx(mock.Anything, mock.Anything).
+		RunAndReturn(func(ctx context.Context, callback func(context.Context) error) error {
+			return callback(ctx)
+		}).Once()
+	return tx
 }
 
 func statusName(status domain.OrderStatusID) string {

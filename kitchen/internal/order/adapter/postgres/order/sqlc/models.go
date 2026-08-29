@@ -21,3 +21,14 @@ type Order struct {
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 }
+
+type OrderItem struct {
+	ID                uuid.UUID      `json:"id"`
+	OrderID           uuid.UUID      `json:"order_id"`
+	ProductID         uuid.UUID      `json:"product_id"`
+	ExternalProductID string         `json:"external_product_id"`
+	ProductName       string         `json:"product_name"`
+	UnitPrice         pgtype.Numeric `json:"unit_price"`
+	Quantity          int32          `json:"quantity"`
+	TotalSum          pgtype.Numeric `json:"total_sum"`
+}

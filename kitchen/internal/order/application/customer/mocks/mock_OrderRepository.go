@@ -174,6 +174,74 @@ func (_c *MockOrderRepository_FindOrderById_Call) RunAndReturn(run func(ctx cont
 	return _c
 }
 
+// FindOrderByIdForUpdate provides a mock function for the type MockOrderRepository
+func (_mock *MockOrderRepository) FindOrderByIdForUpdate(ctx context.Context, orderID string) (*domain.Order, error) {
+	ret := _mock.Called(ctx, orderID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindOrderByIdForUpdate")
+	}
+
+	var r0 *domain.Order
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*domain.Order, error)); ok {
+		return returnFunc(ctx, orderID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *domain.Order); ok {
+		r0 = returnFunc(ctx, orderID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Order)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, orderID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockOrderRepository_FindOrderByIdForUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindOrderByIdForUpdate'
+type MockOrderRepository_FindOrderByIdForUpdate_Call struct {
+	*mock.Call
+}
+
+// FindOrderByIdForUpdate is a helper method to define mock.On call
+//   - ctx context.Context
+//   - orderID string
+func (_e *MockOrderRepository_Expecter) FindOrderByIdForUpdate(ctx any, orderID any) *MockOrderRepository_FindOrderByIdForUpdate_Call {
+	return &MockOrderRepository_FindOrderByIdForUpdate_Call{Call: _e.mock.On("FindOrderByIdForUpdate", ctx, orderID)}
+}
+
+func (_c *MockOrderRepository_FindOrderByIdForUpdate_Call) Run(run func(ctx context.Context, orderID string)) *MockOrderRepository_FindOrderByIdForUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOrderRepository_FindOrderByIdForUpdate_Call) Return(order *domain.Order, err error) *MockOrderRepository_FindOrderByIdForUpdate_Call {
+	_c.Call.Return(order, err)
+	return _c
+}
+
+func (_c *MockOrderRepository_FindOrderByIdForUpdate_Call) RunAndReturn(run func(ctx context.Context, orderID string) (*domain.Order, error)) *MockOrderRepository_FindOrderByIdForUpdate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // FindOrderByIdempotencyKey provides a mock function for the type MockOrderRepository
 func (_mock *MockOrderRepository) FindOrderByIdempotencyKey(ctx context.Context, idempotencyKey string) (*domain.Order, error) {
 	ret := _mock.Called(ctx, idempotencyKey)
@@ -306,6 +374,74 @@ func (_c *MockOrderRepository_InsertOrder_Call) Return(order1 *domain.Order, err
 }
 
 func (_c *MockOrderRepository_InsertOrder_Call) RunAndReturn(run func(ctx context.Context, order domain.Order) (*domain.Order, error)) *MockOrderRepository_InsertOrder_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// InsertOrderItem provides a mock function for the type MockOrderRepository
+func (_mock *MockOrderRepository) InsertOrderItem(ctx context.Context, oi domain.OrderItem) (*domain.OrderItem, error) {
+	ret := _mock.Called(ctx, oi)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InsertOrderItem")
+	}
+
+	var r0 *domain.OrderItem
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, domain.OrderItem) (*domain.OrderItem, error)); ok {
+		return returnFunc(ctx, oi)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, domain.OrderItem) *domain.OrderItem); ok {
+		r0 = returnFunc(ctx, oi)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.OrderItem)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, domain.OrderItem) error); ok {
+		r1 = returnFunc(ctx, oi)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockOrderRepository_InsertOrderItem_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertOrderItem'
+type MockOrderRepository_InsertOrderItem_Call struct {
+	*mock.Call
+}
+
+// InsertOrderItem is a helper method to define mock.On call
+//   - ctx context.Context
+//   - oi domain.OrderItem
+func (_e *MockOrderRepository_Expecter) InsertOrderItem(ctx any, oi any) *MockOrderRepository_InsertOrderItem_Call {
+	return &MockOrderRepository_InsertOrderItem_Call{Call: _e.mock.On("InsertOrderItem", ctx, oi)}
+}
+
+func (_c *MockOrderRepository_InsertOrderItem_Call) Run(run func(ctx context.Context, oi domain.OrderItem)) *MockOrderRepository_InsertOrderItem_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 domain.OrderItem
+		if args[1] != nil {
+			arg1 = args[1].(domain.OrderItem)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOrderRepository_InsertOrderItem_Call) Return(orderItem *domain.OrderItem, err error) *MockOrderRepository_InsertOrderItem_Call {
+	_c.Call.Return(orderItem, err)
+	return _c
+}
+
+func (_c *MockOrderRepository_InsertOrderItem_Call) RunAndReturn(run func(ctx context.Context, oi domain.OrderItem) (*domain.OrderItem, error)) *MockOrderRepository_InsertOrderItem_Call {
 	_c.Call.Return(run)
 	return _c
 }

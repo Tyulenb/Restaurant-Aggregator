@@ -12,9 +12,12 @@ import (
 
 type Querier interface {
 	InsertOrder(ctx context.Context, arg InsertOrderParams) (Order, error)
+	InsertOrderItem(ctx context.Context, arg InsertOrderItemParams) (OrderItem, error)
 	SelectCreatedOrdersByEstablishmentID(ctx context.Context, establishmentID uuid.UUID) ([]Order, error)
 	SelectOrderByID(ctx context.Context, id uuid.UUID) (Order, error)
+	SelectOrderByIDForUpdate(ctx context.Context, id uuid.UUID) (Order, error)
 	SelectOrderByIdempotencyKey(ctx context.Context, idempotencyKey uuid.UUID) (Order, error)
+	SelectOrderItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]OrderItem, error)
 	UpdateOrderStatusByID(ctx context.Context, arg UpdateOrderStatusByIDParams) (Order, error)
 }
 

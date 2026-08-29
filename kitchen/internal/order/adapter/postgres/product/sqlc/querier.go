@@ -11,7 +11,9 @@ import (
 )
 
 type Querier interface {
+	DecrementProductQuantity(ctx context.Context, arg DecrementProductQuantityParams) (int64, error)
 	SelectProductByID(ctx context.Context, id uuid.UUID) (Product, error)
+	SelectProductByIDForUpdate(ctx context.Context, id uuid.UUID) (Product, error)
 }
 
 var _ Querier = (*Queries)(nil)

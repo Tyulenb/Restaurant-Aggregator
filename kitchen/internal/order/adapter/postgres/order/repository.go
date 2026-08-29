@@ -11,8 +11,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	transactor "github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/infrastructure/postgres"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/adapter/postgres/order/sqlc"
+	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application/customer"
+	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application/partner"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/domain"
 )
+
+var _ customer.OrderRepository = (*OrderRepository)(nil)
+var _ partner.OrderRepository = (*OrderRepository)(nil)
 
 type OrderRepository struct {
 	queries *sqlc.Queries
@@ -49,6 +54,39 @@ func (r *OrderRepository) InsertOrder(ctx context.Context, order domain.Order) (
 	return &insertedOrder, nil
 }
 
+func (r *OrderRepository) InsertOrderItem(ctx context.Context, item domain.OrderItem) (*domain.OrderItem, error) {
+	id, err := uuid.Parse(item.ID)
+	if err != nil {
+		return nil, fmt.Errorf("parse order item ID: %w", err)
+	}
+	orderID, err := uuid.Parse(item.OrderID)
+	if err != nil {
+		return nil, fmt.Errorf("parse order ID: %w", err)
+	}
+	productID, err := uuid.Parse(item.ProductID)
+	if err != nil {
+		return nil, fmt.Errorf("parse product ID: %w", err)
+	}
+	unitPrice, err := numericFromFloat32(item.UnitPrice)
+	if err != nil {
+		return nil, fmt.Errorf("convert unit price: %w", err)
+	}
+	totalSum, err := numericFromFloat32(item.TotalSum)
+	if err != nil {
+		return nil, fmt.Errorf("convert total sum: %w", err)
+	}
+	row, err := r.getQueries(ctx).InsertOrderItem(ctx, sqlc.InsertOrderItemParams{
+		ID: id, OrderID: orderID, ProductID: productID,
+		ExternalProductID: item.ExternalProductID, ProductName: item.ProductName,
+		UnitPrice: unitPrice, Quantity: int32(item.Quantity), TotalSum: totalSum,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("insert order item: %w", err)
+	}
+	item.ID = row.ID.String()
+	return &item, nil
+}
+
 func (r *OrderRepository) FindOrderById(ctx context.Context, orderID string) (*domain.Order, error) {
 	id, err := parseUUID("order ID", orderID)
 	if err != nil {
@@ -66,6 +104,35 @@ func (r *OrderRepository) FindOrderById(ctx context.Context, orderID string) (*d
 	result, err := toDomain(row)
 	if err != nil {
 		return nil, fmt.Errorf("convert order selected by ID: %w", err)
+	}
+
+	if err := r.loadOrderItems(ctx, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (r *OrderRepository) FindOrderByIdForUpdate(ctx context.Context, orderID string) (*domain.Order, error) {
+	id, err := parseUUID("order ID", orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	row, err := r.getQueries(ctx).SelectOrderByIDForUpdate(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("select order by ID for update: %w", err)
+	}
+
+	result, err := toDomain(row)
+	if err != nil {
+		return nil, fmt.Errorf("convert order selected by ID for update: %w", err)
+	}
+
+	if err := r.loadOrderItems(ctx, &result); err != nil {
+		return nil, err
 	}
 
 	return &result, nil
@@ -90,7 +157,38 @@ func (r *OrderRepository) FindOrderByIdempotencyKey(ctx context.Context, idempot
 		return nil, fmt.Errorf("convert order selected by idempotency key: %w", err)
 	}
 
+	if err := r.loadOrderItems(ctx, &result); err != nil {
+		return nil, err
+	}
 	return &result, nil
+}
+
+func (r *OrderRepository) loadOrderItems(ctx context.Context, order *domain.Order) error {
+	orderID, err := uuid.Parse(order.ID)
+	if err != nil {
+		return fmt.Errorf("parse order ID for items: %w", err)
+	}
+	rows, err := r.getQueries(ctx).SelectOrderItemsByOrderID(ctx, orderID)
+	if err != nil {
+		return fmt.Errorf("select order items: %w", err)
+	}
+	order.Items = make([]domain.OrderItem, 0, len(rows))
+	for _, row := range rows {
+		unitPrice, priceErr := row.UnitPrice.Float64Value()
+		if priceErr != nil {
+			return fmt.Errorf("convert order item unit price: %w", priceErr)
+		}
+		totalSum, sumErr := row.TotalSum.Float64Value()
+		if sumErr != nil {
+			return fmt.Errorf("convert order item total sum: %w", sumErr)
+		}
+		order.Items = append(order.Items, domain.OrderItem{
+			ID: row.ID.String(), OrderID: row.OrderID.String(), ProductID: row.ProductID.String(),
+			ExternalProductID: row.ExternalProductID, ProductName: row.ProductName,
+			UnitPrice: float32(unitPrice.Float64), Quantity: int(row.Quantity), TotalSum: float32(totalSum.Float64),
+		})
+	}
+	return nil
 }
 
 func (r *OrderRepository) FindNewOrdersByEstablishmentId(
@@ -197,6 +295,14 @@ func parseUUID(name, value string) (uuid.UUID, error) {
 	}
 
 	return id, nil
+}
+
+func numericFromFloat32(value float32) (pgtype.Numeric, error) {
+	var numeric pgtype.Numeric
+	if err := numeric.Scan(strconv.FormatFloat(float64(value), 'f', -1, 32)); err != nil {
+		return pgtype.Numeric{}, err
+	}
+	return numeric, nil
 }
 
 func toDomain(row sqlc.Order) (domain.Order, error) {

@@ -1,4 +1,4 @@
-package application
+package partner
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 
 type OrderRepository interface {
 	InsertOrder(ctx context.Context, order domain.Order) (*domain.Order, error)
-	FindOrderById(ctx context.Context, orderID string) (*domain.Order, error)
+	FindOrderByIdForUpdate(ctx context.Context, orderID string) (*domain.Order, error)
 	FindOrderByIdempotencyKey(ctx context.Context, idempotencyKey string) (*domain.Order, error)
 
 	FindNewOrdersByEstablishmentId(ctx context.Context, establishmentID string) ([]domain.Order, error)
@@ -16,6 +16,6 @@ type OrderRepository interface {
 	UpdateOrderStatus(ctx context.Context, orderID string, status int) (*domain.Order, error)
 }
 
-type ProductRepository interface {
-	FindProductById(ctx context.Context, productID string) (*domain.Product, error)
+type Transactor interface {
+	WithTx(context.Context, func(context.Context) error) error
 }
