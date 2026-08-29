@@ -134,15 +134,15 @@ func validCreateOrderRequest(request *CreateOrderRequest) bool {
 }
 
 func writeBadRequest(w http.ResponseWriter) {
-	infrahttp.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "Request syntax or parameter format is invalid.")
+	infrahttp.WriteBadRequest(w)
 }
 
 func writeValidationError(w http.ResponseWriter) {
-	infrahttp.WriteError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed.")
+	infrahttp.WriteValidationError(w)
 }
 
 func writeNotFound(w http.ResponseWriter) {
-	infrahttp.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Resource not found.")
+	infrahttp.WriteNotFound(w)
 }
 
 func writeInvalidTransition(w http.ResponseWriter) {

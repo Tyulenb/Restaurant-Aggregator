@@ -36,7 +36,7 @@ func (h *PartnerHandler) RegisterRoutes(router *http.ServeMux) {
 }
 
 func (h *PartnerHandler) pollOrders(w http.ResponseWriter, r *http.Request) {
-	establishmentID, ok := establishmentIDFromContext(w, r)
+	establishmentID, ok := infrahttp.EstablishmentID(w, r)
 	if !ok {
 		return
 	}
@@ -54,7 +54,7 @@ func (h *PartnerHandler) pollOrders(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *PartnerHandler) getOrder(w http.ResponseWriter, r *http.Request) {
-	establishmentID, ok := establishmentIDFromContext(w, r)
+	establishmentID, ok := infrahttp.EstablishmentID(w, r)
 	if !ok {
 		return
 	}
@@ -74,11 +74,11 @@ func (h *PartnerHandler) rejectOrder(w http.ResponseWriter, r *http.Request) {
 	if r.Body != nil && r.ContentLength != 0 {
 		request := new(RejectOrderRequest)
 		if err := infrahttp.ParseJSON(r, request); err != nil {
-			writeBadRequest(w)
+			infrahttp.WriteBadRequest(w)
 			return
 		}
 		if len(request.Reason) > 255 {
-			writeValidationError(w)
+			infrahttp.WriteValidationError(w)
 			return
 		}
 	}
@@ -88,18 +88,18 @@ func (h *PartnerHandler) rejectOrder(w http.ResponseWriter, r *http.Request) {
 func (h *PartnerHandler) changeOrderStatus(w http.ResponseWriter, r *http.Request) {
 	request := new(UpdateOrderStatusRequest)
 	if err := infrahttp.ParseJSON(r, request); err != nil {
-		writeBadRequest(w)
+		infrahttp.WriteBadRequest(w)
 		return
 	}
 	if request.Status < int(domain.OrderPreparing) || request.Status > int(domain.OrderCompleted) {
-		writeValidationError(w)
+		infrahttp.WriteValidationError(w)
 		return
 	}
 	h.changeToStatus(w, r, domain.OrderStatusID(request.Status))
 }
 
 func (h *PartnerHandler) changeToStatus(w http.ResponseWriter, r *http.Request, status domain.OrderStatusID) {
-	establishmentID, ok := establishmentIDFromContext(w, r)
+	establishmentID, ok := infrahttp.EstablishmentID(w, r)
 	if !ok {
 		return
 	}
@@ -111,20 +111,11 @@ func (h *PartnerHandler) changeToStatus(w http.ResponseWriter, r *http.Request, 
 	writeOrder(w, order)
 }
 
-func establishmentIDFromContext(w http.ResponseWriter, r *http.Request) (string, bool) {
-	establishmentID, ok := r.Context().Value(infrahttp.EstablishmentIDContextKey).(string)
-	if !ok || establishmentID == "" {
-		infrahttp.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Missing or invalid partner API key.")
-		return "", false
-	}
-	return establishmentID, true
-}
-
 func (h *PartnerHandler) writeUseCaseError(w http.ResponseWriter, operation string, err error) {
 	h.logger.Error(operation, "error", err)
 	switch {
 	case errors.Is(err, application.ErrOrderNotFound):
-		writeNotFound(w)
+		infrahttp.WriteNotFound(w)
 	case errors.Is(err, application.ErrInvalidOrderTransition):
 		writeInvalidTransition(w)
 	default:
@@ -134,8 +125,31 @@ func (h *PartnerHandler) writeUseCaseError(w http.ResponseWriter, operation stri
 
 func writeOrder(w http.ResponseWriter, order *domain.Order) {
 	if order == nil {
-		writeNotFound(w)
+		infrahttp.WriteNotFound(w)
 		return
 	}
 	infrahttp.WriteJSON(w, http.StatusOK, domainOrderToDTO(*order))
+}
+
+func writeInvalidTransition(w http.ResponseWriter) {
+	infrahttp.WriteError(w, http.StatusConflict, "INVALID_ORDER_STATE_TRANSITION", "Requested order state transition is not allowed.")
+}
+
+func domainOrderToDTO(order domain.Order) Order {
+	items := make([]OrderItem, 0, len(order.Items))
+	for _, item := range order.Items {
+		items = append(items, domainOrderItemToDTO(item))
+	}
+	return Order{
+		ID: order.ID, EstablishmentID: order.EstablishmentID, CustomerID: order.CustomerID,
+		DeliveryID: order.DeliveryID, StatusID: int(order.StatusID), TotalPrice: order.TotalPrice,
+		RejectionReason: order.RejectionReason, Items: items, CreatedAt: order.CreatedAt, UpdatedAt: order.UpdatedAt,
+	}
+}
+
+func domainOrderItemToDTO(item domain.OrderItem) OrderItem {
+	return OrderItem{
+		ID: item.ID, ProductID: item.ProductID, ExternalProductID: item.ExternalProductID,
+		ProductName: item.ProductName, UnitPrice: item.UnitPrice, Quantity: item.Quantity, TotalSum: item.TotalSum,
+	}
 }
