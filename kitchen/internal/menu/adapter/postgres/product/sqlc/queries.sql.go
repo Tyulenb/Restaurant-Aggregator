@@ -292,6 +292,19 @@ func (q *Queries) SelectProductByExternalIdForUpdate(ctx context.Context, arg Se
 	return i, err
 }
 
+const selectProductCategoryExternalId = `-- name: SelectProductCategoryExternalId :one
+SELECT external_id
+FROM category
+WHERE id = $1
+`
+
+func (q *Queries) SelectProductCategoryExternalId(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, selectProductCategoryExternalId, id)
+	var external_id string
+	err := row.Scan(&external_id)
+	return external_id, err
+}
+
 const selectProductsByEstablishmentId = `-- name: SelectProductsByEstablishmentId :many
 SELECT
     id,

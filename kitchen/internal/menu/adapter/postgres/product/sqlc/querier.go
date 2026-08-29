@@ -16,6 +16,7 @@ type Querier interface {
 	InsertProduct(ctx context.Context, arg InsertProductParams) (Product, error)
 	SelectProductByExternalId(ctx context.Context, arg SelectProductByExternalIdParams) (Product, error)
 	SelectProductByExternalIdForUpdate(ctx context.Context, arg SelectProductByExternalIdForUpdateParams) (Product, error)
+	SelectProductCategoryExternalId(ctx context.Context, id uuid.UUID) (string, error)
 	SelectProductsByEstablishmentId(ctx context.Context, establishmentID uuid.UUID) ([]Product, error)
 	SelectProductsByEstablishmentIdAndCategoryExternalId(ctx context.Context, arg SelectProductsByEstablishmentIdAndCategoryExternalIdParams) ([]Product, error)
 	UpdateProductByExternalId(ctx context.Context, arg UpdateProductByExternalIdParams) (Product, error)

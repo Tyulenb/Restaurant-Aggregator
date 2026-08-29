@@ -63,6 +63,9 @@ func (r *ProductRepository) SelectProductsByEstablishmentIdAndCategoryExternalId
 	if err != nil {
 		return nil, fmt.Errorf("convert products selected by category external ID: %w", err)
 	}
+	if err := r.setCategoryExternalIDs(ctx, products); err != nil {
+		return nil, fmt.Errorf("resolve categories for products selected by category external ID: %w", err)
+	}
 
 	return products, nil
 }
@@ -84,6 +87,9 @@ func (r *ProductRepository) SelectProductsByEstablishmentId(
 	products, err := productsToDomain(rows)
 	if err != nil {
 		return nil, fmt.Errorf("convert products selected by establishment ID: %w", err)
+	}
+	if err := r.setCategoryExternalIDs(ctx, products); err != nil {
+		return nil, fmt.Errorf("resolve categories for products selected by establishment ID: %w", err)
 	}
 
 	return products, nil
@@ -107,6 +113,9 @@ func (r *ProductRepository) InsertProduct(ctx context.Context, product domain.Pr
 	if err != nil {
 		return nil, fmt.Errorf("convert inserted product: %w", err)
 	}
+	if err := r.setCategoryExternalID(ctx, &insertedProduct); err != nil {
+		return nil, fmt.Errorf("resolve inserted product category: %w", err)
+	}
 
 	return &insertedProduct, nil
 }
@@ -124,7 +133,7 @@ func (r *ProductRepository) SelectProductByExternalId(
 		EstablishmentID: id,
 		ExternalID:      externalID,
 	})
-	return selectedProduct(row, err, "select product by external ID")
+	return r.selectedProduct(ctx, row, err, "select product by external ID")
 }
 
 func (r *ProductRepository) SelectProductByExternalIdForUpdate(
@@ -143,7 +152,7 @@ func (r *ProductRepository) SelectProductByExternalIdForUpdate(
 			ExternalID:      externalID,
 		},
 	)
-	return selectedProduct(row, err, "select product by external ID for update")
+	return r.selectedProduct(ctx, row, err, "select product by external ID for update")
 }
 
 func (r *ProductRepository) UpdateProductByExternalId(
@@ -181,7 +190,7 @@ func (r *ProductRepository) UpdateProductByExternalId(
 	}
 
 	row, err := r.getQueries(ctx).UpdateProductByExternalId(ctx, params)
-	return selectedProduct(row, err, "update product by external ID")
+	return r.selectedProduct(ctx, row, err, "update product by external ID")
 }
 
 func (r *ProductRepository) DeleteProductByExternalId(
@@ -197,7 +206,7 @@ func (r *ProductRepository) DeleteProductByExternalId(
 		EstablishmentID: id,
 		ExternalID:      externalID,
 	})
-	return selectedProduct(row, err, "delete product by external ID")
+	return r.selectedProduct(ctx, row, err, "delete product by external ID")
 }
 
 func (r *ProductRepository) DeleteProductByCategoryId(
@@ -217,6 +226,9 @@ func (r *ProductRepository) DeleteProductByCategoryId(
 	products, err := productsToDomain(rows)
 	if err != nil {
 		return nil, fmt.Errorf("delete products by category ID: convert product: %w", err)
+	}
+	if err := r.setCategoryExternalIDs(ctx, products); err != nil {
+		return nil, fmt.Errorf("delete products by category ID: resolve categories: %w", err)
 	}
 	if len(products) == 0 {
 		return nil, nil
@@ -244,7 +256,7 @@ func (r *ProductRepository) UpdateProductQuantity(
 		EstablishmentID: id,
 		ExternalID:      externalID,
 	})
-	return selectedProduct(row, err, "update product quantity")
+	return r.selectedProduct(ctx, row, err, "update product quantity")
 }
 
 func insertProductParams(product domain.Product) (sqlc.InsertProductParams, error) {
@@ -302,7 +314,9 @@ func insertProductParams(product domain.Product) (sqlc.InsertProductParams, erro
 	return params, nil
 }
 
-func selectedProduct(row sqlc.Product, err error, operation string) (*domain.Product, error) {
+func (r *ProductRepository) selectedProduct(
+	ctx context.Context, row sqlc.Product, err error, operation string,
+) (*domain.Product, error) {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -314,8 +328,41 @@ func selectedProduct(row sqlc.Product, err error, operation string) (*domain.Pro
 	if err != nil {
 		return nil, fmt.Errorf("%s: convert product: %w", operation, err)
 	}
+	if err := r.setCategoryExternalID(ctx, &product); err != nil {
+		return nil, fmt.Errorf("%s: resolve category: %w", operation, err)
+	}
 
 	return &product, nil
+}
+
+func (r *ProductRepository) setCategoryExternalIDs(ctx context.Context, products []domain.Product) error {
+	externalIDs := make(map[string]string)
+	for i := range products {
+		if externalID, ok := externalIDs[products[i].CategoryID]; ok {
+			products[i].CategoryExternalID = externalID
+			continue
+		}
+		if err := r.setCategoryExternalID(ctx, &products[i]); err != nil {
+			return err
+		}
+		externalIDs[products[i].CategoryID] = products[i].CategoryExternalID
+	}
+
+	return nil
+}
+
+func (r *ProductRepository) setCategoryExternalID(ctx context.Context, product *domain.Product) error {
+	categoryID, err := parseUUID("category ID", product.CategoryID)
+	if err != nil {
+		return err
+	}
+	externalID, err := r.getQueries(ctx).SelectProductCategoryExternalId(ctx, categoryID)
+	if err != nil {
+		return fmt.Errorf("select category external ID: %w", err)
+	}
+	product.CategoryExternalID = externalID
+
+	return nil
 }
 
 func productsToDomain(rows []sqlc.Product) ([]domain.Product, error) {

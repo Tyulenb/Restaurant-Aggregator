@@ -166,7 +166,7 @@ func (cu *CustomerUseCase) CreateOrder(ctx context.Context, establishmentID, ide
 
 func validateProduct(product *domain.Product, productID, establishmentID string) error {
 	if product == nil {
-		return fmt.Errorf("find product %q: product not found", productID)
+		return fmt.Errorf("%w: %s", domain.ErrProductNotFound, productID)
 	}
 	if product.DeletedAt != nil {
 		return fmt.Errorf("%w: %s", domain.ErrProductDeleted, productID)

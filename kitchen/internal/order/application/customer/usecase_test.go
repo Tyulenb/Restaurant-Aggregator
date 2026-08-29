@@ -146,10 +146,9 @@ func TestCustomerUseCase_CreateOrder_ValidatesProductsBeforeLocking(t *testing.T
 		product *domain.Product
 		repoErr error
 		wantErr error
-		text    string
 	}{
 		{name: "repository error", repoErr: repositoryErr, wantErr: repositoryErr},
-		{name: "not found", text: "product not found"},
+		{name: "not found", wantErr: domain.ErrProductNotFound},
 		{name: "deleted", product: deleted, wantErr: domain.ErrProductDeleted},
 		{name: "other establishment", product: foreign, wantErr: domain.ErrProductFromOtherEstablishment},
 		{name: "unavailable", product: unavailable, wantErr: domain.ErrProductUnavailable},
@@ -165,11 +164,7 @@ func TestCustomerUseCase_CreateOrder_ValidatesProductsBeforeLocking(t *testing.T
 			order, err := useCase.CreateOrder(ctx, establishmentID, idempotencyKey, validItems())
 
 			require.Error(t, err)
-			if tt.wantErr != nil {
-				assert.ErrorIs(t, err, tt.wantErr)
-			} else {
-				assert.ErrorContains(t, err, tt.text)
-			}
+			assert.ErrorIs(t, err, tt.wantErr)
 			assert.Nil(t, order)
 		})
 	}
@@ -187,10 +182,9 @@ func TestCustomerUseCase_CreateOrder_ValidatesLockedFiniteProduct(t *testing.T) 
 		locked  *domain.Product
 		repoErr error
 		wantErr error
-		text    string
 	}{
 		{name: "lock error", repoErr: repositoryErr, wantErr: repositoryErr},
-		{name: "disappeared", text: "product not found"},
+		{name: "disappeared", wantErr: domain.ErrProductNotFound},
 		{name: "became deleted", locked: deleted, wantErr: domain.ErrProductDeleted},
 		{name: "quantity is nil", locked: validProduct(productID, domain.Finite, nil), wantErr: domain.ErrInsufficientStock},
 		{name: "insufficient stock", locked: validProduct(productID, domain.Finite, &one), wantErr: domain.ErrInsufficientStock},
@@ -208,11 +202,7 @@ func TestCustomerUseCase_CreateOrder_ValidatesLockedFiniteProduct(t *testing.T) 
 			order, err := useCase.CreateOrder(ctx, establishmentID, idempotencyKey, validItems())
 
 			require.Error(t, err)
-			if tt.wantErr != nil {
-				assert.ErrorIs(t, err, tt.wantErr)
-			} else {
-				assert.ErrorContains(t, err, tt.text)
-			}
+			assert.ErrorIs(t, err, tt.wantErr)
 			assert.Nil(t, order)
 		})
 	}

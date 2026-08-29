@@ -2,6 +2,9 @@ package adapterhttp
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -67,5 +70,60 @@ func TestCustomerHandler_CancelOrder(t *testing.T) {
 	}
 	if usecase.orderId != "order-id" {
 		t.Errorf("order ID = %q, want order-id", usecase.orderId)
+	}
+}
+
+func TestCustomerHandler_WriteUseCaseError_OrderCreationBusinessErrors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantCode   string
+	}{
+		{
+			name:       "establishment not found",
+			err:        domain.ErrEstablishmentNotFound,
+			wantStatus: http.StatusNotFound,
+			wantCode:   "NOT_FOUND",
+		},
+		{
+			name:       "product not found through wrapped use case error",
+			err:        fmt.Errorf("create order: %w", domain.ErrProductNotFound),
+			wantStatus: http.StatusNotFound,
+			wantCode:   "NOT_FOUND",
+		},
+		{
+			name:       "establishment unavailable",
+			err:        domain.ErrEstablishmentUnavailable,
+			wantStatus: http.StatusConflict,
+			wantCode:   "ESTABLISHMENT_UNAVAILABLE",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			handler := &CustomerHandler{
+				logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+			}
+			response := httptest.NewRecorder()
+
+			handler.writeUseCaseError(response, "create order", tt.err)
+
+			if response.Code != tt.wantStatus {
+				t.Errorf("status = %d, want %d", response.Code, tt.wantStatus)
+			}
+			var payload struct {
+				Code string `json:"code"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+				t.Fatalf("decode error response: %v", err)
+			}
+			if payload.Code != tt.wantCode {
+				t.Errorf("code = %q, want %q", payload.Code, tt.wantCode)
+			}
+		})
 	}
 }

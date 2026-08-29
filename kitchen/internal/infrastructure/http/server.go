@@ -16,6 +16,7 @@ type Handler interface {
 
 func ServerRun(cfg *config.Config, handlers ...Handler) error {
 	router := NewRouter()
+	registerHealthcheck(router)
 
 	for _, handler := range handlers {
 		handler.RegisterRoutes(router)

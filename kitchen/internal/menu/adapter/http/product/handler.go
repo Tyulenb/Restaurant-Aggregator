@@ -197,7 +197,7 @@ func writeProduct(w http.ResponseWriter, product *domain.Product) {
 
 func productToDTO(product domain.Product) PartnerProduct {
 	return PartnerProduct{
-		ID: product.ID, ExternalID: product.ExternalID, CategoryExternalID: product.CategoryID,
+		ID: product.ID, ExternalID: product.ExternalID, CategoryExternalID: product.CategoryExternalID,
 		Name: product.Name, Description: product.Description, Price: product.Price,
 		Available: product.Available, InventoryType: inventoryTypeName(product.InventoryTypeID),
 		Quantity: product.Quantity, CreatedAt: product.CreatedAt, UpdatedAt: product.UpdatedAt,

@@ -6,6 +6,7 @@ var (
 	ErrOrderNotFound                 = errors.New("order not found")
 	ErrEstablishmentNotFound         = errors.New("establishment not found")
 	ErrEstablishmentUnavailable      = errors.New("establishment is unavailable")
+	ErrProductNotFound               = errors.New("product not found")
 	ErrEmptyOrder                    = errors.New("order must contain at least one item")
 	ErrInvalidItemQuantity           = errors.New("order item quantity must be positive")
 	ErrProductDeleted                = errors.New("product is deleted")

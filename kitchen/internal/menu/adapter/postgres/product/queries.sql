@@ -21,6 +21,11 @@ WHERE p.establishment_id = $1
   AND c.external_id = $2
 ORDER BY p.created_at, p.id;
 
+-- name: SelectProductCategoryExternalId :one
+SELECT external_id
+FROM category
+WHERE id = $1;
+
 -- name: SelectProductsByEstablishmentId :many
 SELECT
     id,

@@ -223,6 +223,10 @@ func (r *OrderRepository) FindOrdersByEstablishmentID(
 		if convertErr != nil {
 			return nil, fmt.Errorf("convert order: %w", convertErr)
 		}
+
+		if err := r.loadOrderItems(ctx, &order); err != nil {
+			return nil, err
+		}
 		orders = append(orders, order)
 	}
 

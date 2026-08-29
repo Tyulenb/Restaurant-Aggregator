@@ -103,6 +103,8 @@ func (h *CustomerHandler) writeUseCaseError(w http.ResponseWriter, operation str
 	h.logger.Error(operation, "error", err)
 	switch {
 	case errors.Is(err, domain.ErrOrderNotFound),
+		errors.Is(err, domain.ErrEstablishmentNotFound),
+		errors.Is(err, domain.ErrProductNotFound),
 		errors.Is(err, domain.ErrProductDeleted),
 		errors.Is(err, domain.ErrProductFromOtherEstablishment):
 		writeNotFound(w)
@@ -110,6 +112,8 @@ func (h *CustomerHandler) writeUseCaseError(w http.ResponseWriter, operation str
 		writeValidationError(w)
 	case errors.Is(err, domain.ErrProductUnavailable):
 		infrahttp.WriteError(w, http.StatusConflict, "PRODUCT_UNAVAILABLE", "Product is unavailable.")
+	case errors.Is(err, domain.ErrEstablishmentUnavailable):
+		infrahttp.WriteError(w, http.StatusConflict, "ESTABLISHMENT_UNAVAILABLE", "Establishment is not accepting orders.")
 	case errors.Is(err, domain.ErrInsufficientStock):
 		infrahttp.WriteError(w, http.StatusConflict, "INSUFFICIENT_STOCK", "Requested quantity is not available.")
 	case errors.Is(err, domain.ErrIdempotencyConflict):
