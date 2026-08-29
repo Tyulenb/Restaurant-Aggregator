@@ -1,7 +1,7 @@
 all: false
 dir: "{{.InterfaceDir}}/mocks"
 filename: "mock_{{.InterfaceName}}.go"
-force-file-write: false
+force-file-write: true
 formatter: goimports
 log-level: info
 structname: "{{.Mock}}{{.InterfaceName}}"
@@ -13,5 +13,11 @@ packages:
         config:
             all: true
     github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/establishment/application:
+        config:
+            all: true
+    github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/application/category:
+        config:
+            all: true
+    github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/application/product:
         config:
             all: true
