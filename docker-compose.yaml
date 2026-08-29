@@ -1,0 +1,58 @@
+services:
+  kitchen:
+    build:
+      context: ./kitchen
+      dockerfile: Dockerfile
+    environment:
+      LISTEN_ADDRESS: ":8080"
+      DATABASE_URL: "postgres://kitchen:kitchen@postgres:5432/kitchen?sslmode=disable"
+      PARTNER_API_KEY: "development-api-key"
+      PARTNER_ESTABLISHMENT_ID: "00000000-0000-0000-0000-000000000001"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  establishment:
+    build:
+      context: ./establishment
+      dockerfile: Dockerfile
+    environment:
+      KITCHEN_BASE_URL: "http://kitchen:8080"
+      PARTNER_API_KEY: "development-api-key"
+      REJECTION_PERCENT: "20"
+      POLL_INTERVAL: "2s"
+      STATUS_DELAY: "3s"
+    depends_on:
+      kitchen:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: kitchen
+      POSTGRES_USER: kitchen
+      POSTGRES_PASSWORD: kitchen
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kitchen -d kitchen"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
