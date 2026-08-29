@@ -32,3 +32,6 @@ go.work.sum
 # Docs files
 *.excalidraw
 Chart_DB_Diagram.json
+
+# Directory with reviews from agents
+reviews

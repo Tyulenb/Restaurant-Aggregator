@@ -1,0 +1,29 @@
+all: false
+dir: "{{.InterfaceDir}}/mocks"
+filename: "mock_{{.InterfaceName}}.go"
+force-file-write: true
+formatter: goimports
+log-level: info
+structname: "{{.Mock}}{{.InterfaceName}}"
+pkgname: "mocks"
+recursive: false
+template: testify
+packages:
+    github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application/customer:
+        config:
+            all: true
+    github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application/partner:
+        config:
+            all: true
+    github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/establishment/application:
+        config:
+            all: true
+    github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/application/category:
+        config:
+            all: true
+    github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/application/product:
+        config:
+            all: true
+    github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/application/establishment:
+        config:
+            all: true

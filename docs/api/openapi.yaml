@@ -51,8 +51,6 @@ paths:
       summary: List establishments
       description: Returns establishments visible to customers.
       parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
         - name: available
           in: query
           required: false
@@ -286,8 +284,6 @@ paths:
       security:
         - PartnerApiKey: []
       parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
         - name: include_deleted
           in: query
           required: false
@@ -420,8 +416,6 @@ paths:
       security:
         - PartnerApiKey: []
       parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
         - name: category_external_id
           in: query
           required: false
@@ -568,19 +562,14 @@ paths:
     post:
       tags: [Partner - Products]
       operationId: adjustProductStock
-      summary: Adjust finite stock allocation
+      summary: Set finite stock allocation
       description: |
-        Applies a delta to the allocated stock of a `finite` product.
-
-        This endpoint is idempotent by `Idempotency-Key`, because retrying the
-        same delta without idempotency protection could apply it more than once.
-
-        The resulting quantity must never be negative.
+        Sets the allocated stock of a `finite` product to an absolute quantity.
+        The new quantity must be between 0 and 2147483647.
       security:
         - PartnerApiKey: []
       parameters:
         - $ref: '#/components/parameters/ExternalProductId'
-        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -602,8 +591,6 @@ paths:
           description: |
             The adjustment cannot be applied, for example because:
             - the product uses untracked inventory;
-            - the resulting finite quantity would be negative;
-            - the same idempotency key was used with a different payload.
           content:
             application/json:
               schema:
@@ -631,8 +618,6 @@ paths:
           schema:
             $ref: '#/components/schemas/OrderStatus'
           description: Commonly `pending` when polling for newly created orders.
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
       responses:
         '200':
           description: Orders returned.
@@ -837,25 +822,6 @@ components:
         type: string
         format: uuid
 
-    Limit:
-      name: limit
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 50
-
-    Offset:
-      name: offset
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 0
-        default: 0
-
   responses:
     BadRequest:
       description: Request syntax or parameter format is invalid.
@@ -939,22 +905,22 @@ components:
         - finite
 
     OrderStatus:
-      type: string
+      type: integer
       enum:
-        - pending
-        - accepted
-        - preparing
-        - ready
-        - completed
-        - rejected
-        - cancelled
+        - 1 #created
+        - 2 #accepted
+        - 3 #preparing
+        - 4 #ready
+        - 5 #completed
+        - 6 #rejected
+        - 7 #cancelled
 
     ProcessingOrderStatus:
-      type: string
+      type: integer
       enum:
-        - preparing
-        - ready
-        - completed
+        - 3 #preparing
+        - 4 #ready
+        - 5 #completed
 
     Establishment:
       type: object
@@ -995,17 +961,11 @@ components:
       type: object
       required:
         - items
-        - limit
-        - offset
       properties:
         items:
           type: array
           items:
             $ref: '#/components/schemas/Establishment'
-        limit:
-          type: integer
-        offset:
-          type: integer
 
     UpdateEstablishmentAvailabilityRequest:
       type: object
@@ -1150,17 +1110,11 @@ components:
       type: object
       required:
         - items
-        - limit
-        - offset
       properties:
         items:
           type: array
           items:
             $ref: '#/components/schemas/PartnerCategory'
-        limit:
-          type: integer
-        offset:
-          type: integer
 
     CreateProductRequest:
       type: object
@@ -1280,33 +1234,25 @@ components:
       type: object
       required:
         - items
-        - limit
-        - offset
       properties:
         items:
           type: array
           items:
             $ref: '#/components/schemas/PartnerProduct'
-        limit:
-          type: integer
-        offset:
-          type: integer
 
     StockAdjustmentRequest:
       type: object
       required:
-        - delta
+        - new_quantity
       additionalProperties: false
       properties:
-        delta:
+        new_quantity:
           type: integer
-          minimum: -2147483648
+          minimum: 0
           maximum: 2147483647
-          not:
-            enum: [0]
-          description: Signed stock delta. The resulting quantity must be non-negative.
+          description: Absolute quantity to store for the finite product.
       example:
-        delta: 20
+        new_quantity: 20
 
     CreateOrderRequest:
       type: object
@@ -1349,7 +1295,7 @@ components:
         - establishment_id
         - customer_id
         - delivery_id
-        - status
+        - status_id
         - total_price
         - items
         - created_at
@@ -1371,7 +1317,7 @@ components:
             Placeholder UUID generated by Kitchen in the MVP.
             The MVP writes the same request-scoped placeholder UUID to
             `customer_id` and `delivery_id`; future integrations may split them.
-        status:
+        status_id:
           $ref: '#/components/schemas/OrderStatus'
         total_price:
           $ref: '#/components/schemas/Price'
@@ -1427,17 +1373,11 @@ components:
       type: object
       required:
         - items
-        - limit
-        - offset
       properties:
         items:
           type: array
           items:
             $ref: '#/components/schemas/Order'
-        limit:
-          type: integer
-        offset:
-          type: integer
 
     RejectOrderRequest:
       type: object
@@ -1451,10 +1391,10 @@ components:
     UpdateOrderStatusRequest:
       type: object
       required:
-        - status
+        - status_id
       additionalProperties: false
       properties:
-        status:
+        status_id:
           $ref: '#/components/schemas/ProcessingOrderStatus'
 
     Error:

@@ -3,6 +3,7 @@ title CJM — Администратор заведения
 
 skinparam shadowing false
 skinparam defaultTextAlignment center
+left to right direction
 
 rectangle "1. Публикация\nменю" as S1
 rectangle "2. Управление\nдоступностью" as S2
