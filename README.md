@@ -231,4 +231,4 @@ cd backend-trainee-assignment-autumn-2026-tyulenb-7224f74f
 docker compose up --build
 ```
 
-Приложение готово к тестированию со стороны клиента.
+Приложение готово к тестированию со стороны клиента, доступно по адресу http://localhost:8080
