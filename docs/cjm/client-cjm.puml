@@ -16,11 +16,11 @@ rectangle "4. Создание\nзаказа" as S4
 rectangle "5. Ожидание решения\nи отмена" as S5
 rectangle "6. Выполнение\nзаказа" as S6
 
-S1 --> S2
-S2 --> S3
-S3 --> S4
-S4 --> S5
-S5 --> S6 : заказ принят
+S1 -[hidden]- S2
+S2 -[hidden]- S3
+S3 -[hidden]- S4
+S4 -[hidden]- S5
+S5 -[hidden]- S6 : заказ принят
 
 note bottom of S1
 **Цель**
