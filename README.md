@@ -225,7 +225,9 @@ API спроектировано на основании перечисленн�
 ## Запуск и тестирование
 
 ```bash
-git clone 
-cd 
+git clone https://github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f.git
+cd backend-trainee-assignment-autumn-2026-tyulenb-7224f74f
 docker compose up --build
 ```
+
+Приложение готово к тестированию со стороны клиента.
