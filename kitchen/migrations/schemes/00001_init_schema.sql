@@ -37,6 +37,7 @@ CREATE TABLE "category" (
 
     PRIMARY KEY ("id"),
     CONSTRAINT "uq_category_id_establishment_id" UNIQUE ("id", "establishment_id"),
+    CONSTRAINT "uq_external_id_establishment_id" UNIQUE ("external_id", "establishment_id"),
     CONSTRAINT "fk_category_establishment_id_establishment_id"
         FOREIGN KEY ("establishment_id") REFERENCES "establishment"("id")
 );
@@ -57,6 +58,7 @@ CREATE TABLE "product" (
     "deleted_at" timestamp with time zone,
 
     PRIMARY KEY ("id"),
+    CONSTRAINT "uq_external_id_establishment_id" UNIQUE ("external_id", "establishment_id"),
     CONSTRAINT "chk_product_quantity_nonnegative"
         CHECK ("quantity" IS NULL OR "quantity" >= 0),
     CONSTRAINT "chk_product_price_nonnegative"
