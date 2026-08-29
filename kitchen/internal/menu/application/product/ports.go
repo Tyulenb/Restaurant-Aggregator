@@ -13,12 +13,20 @@ type ProductRepository interface {
 	SelectProductsByEstablishmentId(
 		ctx context.Context, establishmentID string,
 	) ([]domain.Product, error)
-	SelectCategoryByExternalId(ctx context.Context, establishmentID, externalID string) (*domain.Category, error)
 	InsertProduct(ctx context.Context, product domain.Product) (*domain.Product, error)
 	SelectProductByExternalId(ctx context.Context, establishmentID, externalID string) (*domain.Product, error)
+	SelectProductByExternalIdForUpdate(ctx context.Context, establishmentID, externalID string) (*domain.Product, error)
 	UpdateProductByExternalId(
 		ctx context.Context, establishmentID, externalID string, cmd CommandUpdateProduct,
 	) (*domain.Product, error)
 	DeleteProductByExternalId(ctx context.Context, establishmentID, externalID string) (*domain.Product, error)
-	UpdateProductQuantity(ctx context.Context, establishmentID, externalID string, delta int) (*domain.Product, error)
+	UpdateProductQuantity(ctx context.Context, establishmentID, externalID string, quantity int) (*domain.Product, error)
+}
+
+type CategoryRepository interface {
+	SelectCategoryByExternalId(ctx context.Context, establishmentID, externalID string) (*domain.Category, error)
+}
+
+type Transactor interface {
+	WithTx(context.Context, func(context.Context) error) error
 }

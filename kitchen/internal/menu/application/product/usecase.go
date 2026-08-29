@@ -2,6 +2,7 @@ package product
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -17,15 +18,17 @@ const (
 )
 
 type ProductUseCase struct {
-	Repo ProductRepository
+	ProductRepo  ProductRepository
+	CategoryRepo CategoryRepository
+	Tx           Transactor
 }
 
-func NewProductUseCase(repo ProductRepository) *ProductUseCase {
-	return &ProductUseCase{Repo: repo}
-}
-
-func NewUseCase(repo ProductRepository) *ProductUseCase {
-	return NewProductUseCase(repo)
+func NewProductUseCase(prRepo ProductRepository, catRepo CategoryRepository, tx Transactor) *ProductUseCase {
+	return &ProductUseCase{
+		ProductRepo:  prRepo,
+		CategoryRepo: catRepo,
+		Tx:           tx,
+	}
 }
 
 func (pu *ProductUseCase) ListPartnerProducts(
@@ -40,9 +43,9 @@ func (pu *ProductUseCase) ListPartnerProducts(
 		err      error
 	)
 	if categoryExternalID == "" {
-		products, err = pu.Repo.SelectProductsByEstablishmentId(ctx, establishmentID)
+		products, err = pu.ProductRepo.SelectProductsByEstablishmentId(ctx, establishmentID)
 	} else {
-		products, err = pu.Repo.SelectProductsByEstablishmentIdAndCategoryExternalId(
+		products, err = pu.ProductRepo.SelectProductsByEstablishmentIdAndCategoryExternalId(
 			ctx, establishmentID, categoryExternalID,
 		)
 	}
@@ -68,7 +71,7 @@ func (pu *ProductUseCase) CreatePartnerProduct(
 		return nil, err
 	}
 
-	category, err := pu.Repo.SelectCategoryByExternalId(ctx, establishmentID, cmd.CategoryExternalID)
+	category, err := pu.CategoryRepo.SelectCategoryByExternalId(ctx, establishmentID, cmd.CategoryExternalID)
 	if err != nil {
 		return nil, fmt.Errorf("select category %q: %w", cmd.CategoryExternalID, err)
 	}
@@ -92,7 +95,7 @@ func (pu *ProductUseCase) CreatePartnerProduct(
 		UpdatedAt:       now,
 	}
 
-	createdProduct, err := pu.Repo.InsertProduct(ctx, newProduct)
+	createdProduct, err := pu.ProductRepo.InsertProduct(ctx, newProduct)
 	if err != nil {
 		return nil, fmt.Errorf("insert product: %w", err)
 	}
@@ -110,7 +113,7 @@ func (pu *ProductUseCase) FindProductByExternalId(
 		return nil, fmt.Errorf("%w: external ID must contain 1 to 128 characters", domain.ErrProductValidation)
 	}
 
-	selectedProduct, err := pu.Repo.SelectProductByExternalId(ctx, establishmentID, externalID)
+	selectedProduct, err := pu.ProductRepo.SelectProductByExternalId(ctx, establishmentID, externalID)
 	if err != nil {
 		return nil, fmt.Errorf("select product %q: %w", externalID, err)
 	}
@@ -121,6 +124,8 @@ func (pu *ProductUseCase) FindProductByExternalId(
 	return selectedProduct, nil
 }
 
+// Select Product by externalID and establishmentID
+// nil fields of CommandUpdateProduct are setted to selected
 func (pu *ProductUseCase) UpdateProductByExternalId(
 	ctx context.Context, establishmentID, externalID string, cmd CommandUpdateProduct,
 ) (*domain.Product, error) {
@@ -130,17 +135,37 @@ func (pu *ProductUseCase) UpdateProductByExternalId(
 	if err := validateUpdateCommand(cmd); err != nil {
 		return nil, err
 	}
+	selectedProduct, err := pu.ProductRepo.SelectProductByExternalId(ctx, establishmentID, externalID)
+	if err != nil {
+		return nil, fmt.Errorf("select product %q: %w", externalID, err)
+	}
+	if selectedProduct == nil || selectedProduct.DeletedAt != nil {
+		return nil, domain.ErrProductNotFound
+	}
 	if cmd.CategoryExternalID != nil {
-		category, err := pu.Repo.SelectCategoryByExternalId(ctx, establishmentID, *cmd.CategoryExternalID)
-		if err != nil {
-			return nil, fmt.Errorf("select category %q: %w", *cmd.CategoryExternalID, err)
+		category, selectErr := pu.CategoryRepo.SelectCategoryByExternalId(ctx, establishmentID, *cmd.CategoryExternalID)
+		if selectErr != nil {
+			return nil, fmt.Errorf("select category %q: %w", *cmd.CategoryExternalID, selectErr)
 		}
 		if category == nil || category.DeletedAt != nil {
 			return nil, domain.ErrCategoryNotFound
 		}
 	}
 
-	updatedProduct, err := pu.Repo.UpdateProductByExternalId(ctx, establishmentID, externalID, cmd)
+	if cmd.Name == nil {
+		cmd.Name = &selectedProduct.Name
+	}
+	if !cmd.DescriptionSet {
+		cmd.Description = selectedProduct.Description
+	}
+	if cmd.Price == nil {
+		cmd.Price = &selectedProduct.Price
+	}
+	if cmd.Available == nil {
+		cmd.Available = &selectedProduct.Available
+	}
+
+	updatedProduct, err := pu.ProductRepo.UpdateProductByExternalId(ctx, establishmentID, externalID, cmd)
 	if err != nil {
 		return nil, fmt.Errorf("update product %q: %w", externalID, err)
 	}
@@ -158,7 +183,7 @@ func (pu *ProductUseCase) DeleteProductByExternalId(
 		return nil, fmt.Errorf("%w: external ID must contain 1 to 128 characters", domain.ErrProductValidation)
 	}
 
-	deletedProduct, err := pu.Repo.DeleteProductByExternalId(ctx, establishmentID, externalID)
+	deletedProduct, err := pu.ProductRepo.DeleteProductByExternalId(ctx, establishmentID, externalID)
 	if err != nil {
 		return nil, fmt.Errorf("delete product %q: %w", externalID, err)
 	}
@@ -169,40 +194,56 @@ func (pu *ProductUseCase) DeleteProductByExternalId(
 	return deletedProduct, nil
 }
 
+// For update + update quantity in one transaction
 func (pu *ProductUseCase) AdjustProductStock(
-	ctx context.Context, establishmentID, externalID string, delta int,
+	ctx context.Context, establishmentID, externalID string, quantity int,
 ) (*domain.Product, error) {
 	if !validExternalID(externalID) {
 		return nil, fmt.Errorf("%w: external ID must contain 1 to 128 characters", domain.ErrProductValidation)
 	}
-	if delta == 0 {
+	if quantity == 0 {
 		return nil, fmt.Errorf("%w: delta must not be zero", domain.ErrProductValidation)
 	}
-	if int64(delta) < minStockDelta || int64(delta) > maxStockDelta {
+	if int64(quantity) < minStockDelta || int64(quantity) > maxStockDelta {
 		return nil, fmt.Errorf("%w: delta is outside the supported range", domain.ErrProductValidation)
 	}
-
-	product, err := pu.Repo.SelectProductByExternalId(ctx, establishmentID, externalID)
-	if err != nil {
-		return nil, fmt.Errorf("select product %q: %w", externalID, err)
-	}
-	if product == nil || product.DeletedAt != nil {
-		return nil, domain.ErrProductNotFound
-	}
-	if product.InventoryTypeID != domain.Finite || product.Quantity == nil {
-		return nil, fmt.Errorf("%w: product does not use finite inventory", domain.ErrStockAdjustmentConflict)
-	}
-	resultingQuantity := int64(*product.Quantity) + int64(delta)
-	if resultingQuantity < 0 || resultingQuantity > maxStockDelta {
-		return nil, fmt.Errorf("%w: resulting quantity is outside the supported range", domain.ErrStockAdjustmentConflict)
+	if pu.Tx == nil {
+		return nil, errors.New("adjust product stock: transactor is not configured")
 	}
 
-	updatedProduct, err := pu.Repo.UpdateProductQuantity(ctx, establishmentID, externalID, delta)
+	var updatedProduct *domain.Product
+	err := pu.Tx.WithTx(ctx, func(txCtx context.Context) error {
+		selectedProduct, selectErr := pu.ProductRepo.SelectProductByExternalIdForUpdate(
+			txCtx, establishmentID, externalID,
+		)
+		if selectErr != nil {
+			return fmt.Errorf("select product %q: %w", externalID, selectErr)
+		}
+		if selectedProduct == nil || selectedProduct.DeletedAt != nil {
+			return domain.ErrProductNotFound
+		}
+		if selectedProduct.InventoryTypeID != domain.Finite || selectedProduct.Quantity == nil {
+			return fmt.Errorf("%w: product does not use finite inventory", domain.ErrStockAdjustmentConflict)
+		}
+		resultingQuantity := int64(*selectedProduct.Quantity) + int64(quantity)
+		if resultingQuantity < 0 || resultingQuantity > maxStockDelta {
+			return fmt.Errorf("%w: resulting quantity is outside the supported range", domain.ErrStockAdjustmentConflict)
+		}
+
+		updatedProduct, selectErr = pu.ProductRepo.UpdateProductQuantity(
+			txCtx, establishmentID, externalID, quantity,
+		)
+		if selectErr != nil {
+			return fmt.Errorf("adjust product %q stock: %w", externalID, selectErr)
+		}
+		if updatedProduct == nil {
+			return fmt.Errorf("%w: stock changed before the adjustment was applied", domain.ErrStockAdjustmentConflict)
+		}
+
+		return nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf("adjust product %q stock: %w", externalID, err)
-	}
-	if updatedProduct == nil {
-		return nil, fmt.Errorf("%w: stock changed before the adjustment was applied", domain.ErrStockAdjustmentConflict)
 	}
 
 	return updatedProduct, nil

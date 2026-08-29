@@ -113,8 +113,8 @@ func (h *ProductHandler) patchPartnerProduct(w http.ResponseWriter, r *http.Requ
 	}
 	product, err := h.usecase.UpdateProductByExternalId(r.Context(), establishmentID, externalID, application.CommandUpdateProduct{
 		CategoryExternalID: request.CategoryID, Name: request.Name,
-		Description: request.Description, DescriptionSet: request.DescriptionSet,
-		Price: request.Price, Available: request.Available,
+		Description: request.Description, DescriptionSet: request.DescriptionSet, Price: request.Price,
+		Available: request.Available,
 	})
 	if err != nil {
 		h.writeUseCaseError(w, "update product", err)
@@ -151,7 +151,7 @@ func (h *ProductHandler) adjustStocks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	product, err := h.usecase.AdjustProductStock(
-		r.Context(), establishmentID, externalID, request.Delta,
+		r.Context(), establishmentID, externalID, request.NewQuantity,
 	)
 	if err != nil {
 		h.writeUseCaseError(w, "adjust product stock", err)

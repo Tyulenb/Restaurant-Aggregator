@@ -72,5 +72,5 @@ type ProductListQuery struct {
 
 // StockAdjustmentRequest is the payload for changing finite product stock.
 type StockAdjustmentRequest struct {
-	Delta int `json:"delta"`
+	NewQuantity int `json:"new_quantity"`
 }

@@ -9,17 +9,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type Category struct {
-	ID              uuid.UUID          `json:"id"`
-	EstablishmentID uuid.UUID          `json:"establishment_id"`
-	ExternalID      string             `json:"external_id"`
-	Name            string             `json:"name"`
-	Description     pgtype.Text        `json:"description"`
-	CreatedAt       pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
-}
-
 type Product struct {
 	ID              uuid.UUID          `json:"id"`
 	ExternalID      string             `json:"external_id"`

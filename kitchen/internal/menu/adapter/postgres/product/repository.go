@@ -87,30 +87,6 @@ func (r *ProductRepository) SelectProductsByEstablishmentId(
 	return products, nil
 }
 
-func (r *ProductRepository) SelectCategoryByExternalId(
-	ctx context.Context,
-	establishmentID, externalID string,
-) (*domain.Category, error) {
-	id, err := parseUUID("establishment ID", establishmentID)
-	if err != nil {
-		return nil, err
-	}
-
-	row, err := r.getQueries(ctx).SelectCategoryByExternalId(ctx, sqlc.SelectCategoryByExternalIdParams{
-		EstablishmentID: id,
-		ExternalID:      externalID,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("select category by external ID: %w", err)
-	}
-
-	category := categoryToDomain(row)
-	return &category, nil
-}
-
 func (r *ProductRepository) InsertProduct(ctx context.Context, product domain.Product) (*domain.Product, error) {
 	params, err := insertProductParams(product)
 	if err != nil {
@@ -147,6 +123,25 @@ func (r *ProductRepository) SelectProductByExternalId(
 		ExternalID:      externalID,
 	})
 	return selectedProduct(row, err, "select product by external ID")
+}
+
+func (r *ProductRepository) SelectProductByExternalIdForUpdate(
+	ctx context.Context,
+	establishmentID, externalID string,
+) (*domain.Product, error) {
+	id, err := parseUUID("establishment ID", establishmentID)
+	if err != nil {
+		return nil, err
+	}
+
+	row, err := r.getQueries(ctx).SelectProductByExternalIdForUpdate(
+		ctx,
+		sqlc.SelectProductByExternalIdForUpdateParams{
+			EstablishmentID: id,
+			ExternalID:      externalID,
+		},
+	)
+	return selectedProduct(row, err, "select product by external ID for update")
 }
 
 func (r *ProductRepository) UpdateProductByExternalId(
@@ -369,28 +364,6 @@ func productToDomain(row sqlc.Product) (domain.Product, error) {
 		UpdatedAt:       row.UpdatedAt.Time,
 		DeletedAt:       deletedAt,
 	}, nil
-}
-
-func categoryToDomain(row sqlc.Category) domain.Category {
-	var description *string
-	if row.Description.Valid {
-		description = &row.Description.String
-	}
-	var deletedAt *time.Time
-	if row.DeletedAt.Valid {
-		deletedAt = &row.DeletedAt.Time
-	}
-
-	return domain.Category{
-		ID:              row.ID.String(),
-		EstablishmentID: row.EstablishmentID.String(),
-		ExternalID:      row.ExternalID,
-		Name:            row.Name,
-		Description:     description,
-		CreatedAt:       row.CreatedAt.Time,
-		UpdatedAt:       row.UpdatedAt.Time,
-		DeletedAt:       deletedAt,
-	}
 }
 
 func numericFromFloat32(value float32) (pgtype.Numeric, error) {

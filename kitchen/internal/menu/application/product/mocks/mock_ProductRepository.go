@@ -181,80 +181,6 @@ func (_c *MockProductRepository_InsertProduct_Call) RunAndReturn(run func(ctx co
 	return _c
 }
 
-// SelectCategoryByExternalId provides a mock function for the type MockProductRepository
-func (_mock *MockProductRepository) SelectCategoryByExternalId(ctx context.Context, establishmentID string, externalID string) (*domain.Category, error) {
-	ret := _mock.Called(ctx, establishmentID, externalID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SelectCategoryByExternalId")
-	}
-
-	var r0 *domain.Category
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*domain.Category, error)); ok {
-		return returnFunc(ctx, establishmentID, externalID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *domain.Category); ok {
-		r0 = returnFunc(ctx, establishmentID, externalID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.Category)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = returnFunc(ctx, establishmentID, externalID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockProductRepository_SelectCategoryByExternalId_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SelectCategoryByExternalId'
-type MockProductRepository_SelectCategoryByExternalId_Call struct {
-	*mock.Call
-}
-
-// SelectCategoryByExternalId is a helper method to define mock.On call
-//   - ctx context.Context
-//   - establishmentID string
-//   - externalID string
-func (_e *MockProductRepository_Expecter) SelectCategoryByExternalId(ctx any, establishmentID any, externalID any) *MockProductRepository_SelectCategoryByExternalId_Call {
-	return &MockProductRepository_SelectCategoryByExternalId_Call{Call: _e.mock.On("SelectCategoryByExternalId", ctx, establishmentID, externalID)}
-}
-
-func (_c *MockProductRepository_SelectCategoryByExternalId_Call) Run(run func(ctx context.Context, establishmentID string, externalID string)) *MockProductRepository_SelectCategoryByExternalId_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockProductRepository_SelectCategoryByExternalId_Call) Return(category *domain.Category, err error) *MockProductRepository_SelectCategoryByExternalId_Call {
-	_c.Call.Return(category, err)
-	return _c
-}
-
-func (_c *MockProductRepository_SelectCategoryByExternalId_Call) RunAndReturn(run func(ctx context.Context, establishmentID string, externalID string) (*domain.Category, error)) *MockProductRepository_SelectCategoryByExternalId_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // SelectProductByExternalId provides a mock function for the type MockProductRepository
 func (_mock *MockProductRepository) SelectProductByExternalId(ctx context.Context, establishmentID string, externalID string) (*domain.Product, error) {
 	ret := _mock.Called(ctx, establishmentID, externalID)
@@ -325,6 +251,80 @@ func (_c *MockProductRepository_SelectProductByExternalId_Call) Return(product *
 }
 
 func (_c *MockProductRepository_SelectProductByExternalId_Call) RunAndReturn(run func(ctx context.Context, establishmentID string, externalID string) (*domain.Product, error)) *MockProductRepository_SelectProductByExternalId_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SelectProductByExternalIdForUpdate provides a mock function for the type MockProductRepository
+func (_mock *MockProductRepository) SelectProductByExternalIdForUpdate(ctx context.Context, establishmentID string, externalID string) (*domain.Product, error) {
+	ret := _mock.Called(ctx, establishmentID, externalID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SelectProductByExternalIdForUpdate")
+	}
+
+	var r0 *domain.Product
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*domain.Product, error)); ok {
+		return returnFunc(ctx, establishmentID, externalID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *domain.Product); ok {
+		r0 = returnFunc(ctx, establishmentID, externalID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Product)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, establishmentID, externalID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockProductRepository_SelectProductByExternalIdForUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SelectProductByExternalIdForUpdate'
+type MockProductRepository_SelectProductByExternalIdForUpdate_Call struct {
+	*mock.Call
+}
+
+// SelectProductByExternalIdForUpdate is a helper method to define mock.On call
+//   - ctx context.Context
+//   - establishmentID string
+//   - externalID string
+func (_e *MockProductRepository_Expecter) SelectProductByExternalIdForUpdate(ctx any, establishmentID any, externalID any) *MockProductRepository_SelectProductByExternalIdForUpdate_Call {
+	return &MockProductRepository_SelectProductByExternalIdForUpdate_Call{Call: _e.mock.On("SelectProductByExternalIdForUpdate", ctx, establishmentID, externalID)}
+}
+
+func (_c *MockProductRepository_SelectProductByExternalIdForUpdate_Call) Run(run func(ctx context.Context, establishmentID string, externalID string)) *MockProductRepository_SelectProductByExternalIdForUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockProductRepository_SelectProductByExternalIdForUpdate_Call) Return(product *domain.Product, err error) *MockProductRepository_SelectProductByExternalIdForUpdate_Call {
+	_c.Call.Return(product, err)
+	return _c
+}
+
+func (_c *MockProductRepository_SelectProductByExternalIdForUpdate_Call) RunAndReturn(run func(ctx context.Context, establishmentID string, externalID string) (*domain.Product, error)) *MockProductRepository_SelectProductByExternalIdForUpdate_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -552,8 +552,8 @@ func (_c *MockProductRepository_UpdateProductByExternalId_Call) RunAndReturn(run
 }
 
 // UpdateProductQuantity provides a mock function for the type MockProductRepository
-func (_mock *MockProductRepository) UpdateProductQuantity(ctx context.Context, establishmentID string, externalID string, delta int) (*domain.Product, error) {
-	ret := _mock.Called(ctx, establishmentID, externalID, delta)
+func (_mock *MockProductRepository) UpdateProductQuantity(ctx context.Context, establishmentID string, externalID string, quantity int) (*domain.Product, error) {
+	ret := _mock.Called(ctx, establishmentID, externalID, quantity)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateProductQuantity")
@@ -562,17 +562,17 @@ func (_mock *MockProductRepository) UpdateProductQuantity(ctx context.Context, e
 	var r0 *domain.Product
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, int) (*domain.Product, error)); ok {
-		return returnFunc(ctx, establishmentID, externalID, delta)
+		return returnFunc(ctx, establishmentID, externalID, quantity)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, int) *domain.Product); ok {
-		r0 = returnFunc(ctx, establishmentID, externalID, delta)
+		r0 = returnFunc(ctx, establishmentID, externalID, quantity)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*domain.Product)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, int) error); ok {
-		r1 = returnFunc(ctx, establishmentID, externalID, delta)
+		r1 = returnFunc(ctx, establishmentID, externalID, quantity)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -588,12 +588,12 @@ type MockProductRepository_UpdateProductQuantity_Call struct {
 //   - ctx context.Context
 //   - establishmentID string
 //   - externalID string
-//   - delta int
-func (_e *MockProductRepository_Expecter) UpdateProductQuantity(ctx any, establishmentID any, externalID any, delta any) *MockProductRepository_UpdateProductQuantity_Call {
-	return &MockProductRepository_UpdateProductQuantity_Call{Call: _e.mock.On("UpdateProductQuantity", ctx, establishmentID, externalID, delta)}
+//   - quantity int
+func (_e *MockProductRepository_Expecter) UpdateProductQuantity(ctx any, establishmentID any, externalID any, quantity any) *MockProductRepository_UpdateProductQuantity_Call {
+	return &MockProductRepository_UpdateProductQuantity_Call{Call: _e.mock.On("UpdateProductQuantity", ctx, establishmentID, externalID, quantity)}
 }
 
-func (_c *MockProductRepository_UpdateProductQuantity_Call) Run(run func(ctx context.Context, establishmentID string, externalID string, delta int)) *MockProductRepository_UpdateProductQuantity_Call {
+func (_c *MockProductRepository_UpdateProductQuantity_Call) Run(run func(ctx context.Context, establishmentID string, externalID string, quantity int)) *MockProductRepository_UpdateProductQuantity_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -626,7 +626,7 @@ func (_c *MockProductRepository_UpdateProductQuantity_Call) Return(product1 *dom
 	return _c
 }
 
-func (_c *MockProductRepository_UpdateProductQuantity_Call) RunAndReturn(run func(ctx context.Context, establishmentID string, externalID string, delta int) (*domain.Product, error)) *MockProductRepository_UpdateProductQuantity_Call {
+func (_c *MockProductRepository_UpdateProductQuantity_Call) RunAndReturn(run func(ctx context.Context, establishmentID string, externalID string, quantity int) (*domain.Product, error)) *MockProductRepository_UpdateProductQuantity_Call {
 	_c.Call.Return(run)
 	return _c
 }

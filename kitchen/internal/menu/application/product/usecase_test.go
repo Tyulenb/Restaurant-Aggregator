@@ -58,7 +58,7 @@ func TestProductUseCase_ListPartnerProducts_SelectsAndFiltersProducts(t *testing
 					ctx, establishmentID, tt.categoryExternalID,
 				).Return(products, nil).Once()
 			}
-			useCase := product.NewUseCase(repo)
+			useCase := newProductUseCase(t, repo)
 
 			actual, err := useCase.ListPartnerProducts(
 				ctx, establishmentID, tt.categoryExternalID, tt.includeDeleted,
@@ -75,7 +75,7 @@ func TestProductUseCase_ListPartnerProducts_HandlesEmptyAndErrorResults(t *testi
 		repo := mocks.NewMockProductRepository(t)
 		repo.EXPECT().SelectProductsByEstablishmentId(mock.Anything, establishmentID).
 			Return(nil, nil).Once()
-		useCase := product.NewProductUseCase(repo)
+		useCase := newProductUseCase(t, repo)
 
 		products, err := useCase.ListPartnerProducts(t.Context(), establishmentID, "", false)
 
@@ -90,7 +90,7 @@ func TestProductUseCase_ListPartnerProducts_HandlesEmptyAndErrorResults(t *testi
 		repo.EXPECT().SelectProductsByEstablishmentIdAndCategoryExternalId(
 			mock.Anything, establishmentID, externalCategoryID,
 		).Return(nil, repositoryErr).Once()
-		useCase := product.NewProductUseCase(repo)
+		useCase := newProductUseCase(t, repo)
 
 		products, err := useCase.ListPartnerProducts(
 			t.Context(), establishmentID, externalCategoryID, false,
@@ -104,7 +104,7 @@ func TestProductUseCase_ListPartnerProducts_HandlesEmptyAndErrorResults(t *testi
 
 func TestProductUseCase_ListPartnerProducts_ValidatesCategoryFilter(t *testing.T) {
 	repo := mocks.NewMockProductRepository(t)
-	useCase := product.NewProductUseCase(repo)
+	useCase := newProductUseCase(t, repo)
 
 	products, err := useCase.ListPartnerProducts(
 		t.Context(), establishmentID, strings.Repeat("я", 129), false,
@@ -143,7 +143,7 @@ func TestProductUseCase_CreatePartnerProduct_ValidatesCommand(t *testing.T) {
 			cmd := validCreateCommand()
 			tt.mutate(&cmd)
 			repo := mocks.NewMockProductRepository(t)
-			useCase := product.NewProductUseCase(repo)
+			useCase := newProductUseCase(t, repo)
 
 			created, err := useCase.CreatePartnerProduct(t.Context(), establishmentID, cmd)
 
@@ -173,7 +173,8 @@ func TestProductUseCase_CreatePartnerProduct_CreatesInventoryTypes(t *testing.T)
 			cmd.Quantity = tt.quantity
 			category := &domain.Category{ID: "category-1", ExternalID: externalCategoryID}
 			repo := mocks.NewMockProductRepository(t)
-			repo.EXPECT().SelectCategoryByExternalId(ctx, establishmentID, externalCategoryID).
+			categoryRepo := mocks.NewMockCategoryRepository(t)
+			categoryRepo.EXPECT().SelectCategoryByExternalId(ctx, establishmentID, externalCategoryID).
 				Return(category, nil).Once()
 			var inserted domain.Product
 			repo.EXPECT().InsertProduct(ctx, mock.AnythingOfType("domain.Product")).
@@ -181,7 +182,7 @@ func TestProductUseCase_CreatePartnerProduct_CreatesInventoryTypes(t *testing.T)
 					inserted = value
 					return &value, nil
 				}).Once()
-			useCase := product.NewProductUseCase(repo)
+			useCase := product.NewProductUseCase(repo, categoryRepo, executingTransactor(t))
 
 			before := time.Now()
 			created, err := useCase.CreatePartnerProduct(ctx, establishmentID, cmd)
@@ -223,9 +224,10 @@ func TestProductUseCase_CreatePartnerProduct_HandlesCategoryFailures(t *testing.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := mocks.NewMockProductRepository(t)
-			repo.EXPECT().SelectCategoryByExternalId(mock.Anything, establishmentID, externalCategoryID).
+			categoryRepo := mocks.NewMockCategoryRepository(t)
+			categoryRepo.EXPECT().SelectCategoryByExternalId(mock.Anything, establishmentID, externalCategoryID).
 				Return(tt.category, tt.repoErr).Once()
-			useCase := product.NewProductUseCase(repo)
+			useCase := product.NewProductUseCase(repo, categoryRepo, executingTransactor(t))
 
 			created, err := useCase.CreatePartnerProduct(t.Context(), establishmentID, validCreateCommand())
 
@@ -249,10 +251,11 @@ func TestProductUseCase_CreatePartnerProduct_HandlesInsertFailures(t *testing.T)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := mocks.NewMockProductRepository(t)
-			repo.EXPECT().SelectCategoryByExternalId(mock.Anything, establishmentID, externalCategoryID).
+			categoryRepo := mocks.NewMockCategoryRepository(t)
+			categoryRepo.EXPECT().SelectCategoryByExternalId(mock.Anything, establishmentID, externalCategoryID).
 				Return(&domain.Category{ID: "category-1"}, nil).Once()
 			repo.EXPECT().InsertProduct(mock.Anything, mock.Anything).Return(nil, tt.repoErr).Once()
-			useCase := product.NewProductUseCase(repo)
+			useCase := product.NewProductUseCase(repo, categoryRepo, executingTransactor(t))
 
 			created, err := useCase.CreatePartnerProduct(t.Context(), establishmentID, validCreateCommand())
 
@@ -286,7 +289,7 @@ func TestProductUseCase_FindProductByExternalId(t *testing.T) {
 			repo := mocks.NewMockProductRepository(t)
 			repo.EXPECT().SelectProductByExternalId(mock.Anything, establishmentID, externalProductID).
 				Return(tt.result, tt.repoErr).Once()
-			useCase := product.NewProductUseCase(repo)
+			useCase := newProductUseCase(t, repo)
 
 			actual, err := useCase.FindProductByExternalId(t.Context(), establishmentID, externalProductID)
 
@@ -303,7 +306,7 @@ func TestProductUseCase_FindProductByExternalId(t *testing.T) {
 
 func TestProductUseCase_ProductOperationsValidateExternalID(t *testing.T) {
 	repo := mocks.NewMockProductRepository(t)
-	useCase := product.NewProductUseCase(repo)
+	useCase := newProductUseCase(t, repo)
 	invalidID := strings.Repeat("я", 129)
 	available := true
 
@@ -358,7 +361,7 @@ func TestProductUseCase_UpdateProductByExternalId_ValidatesCommand(t *testing.T)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := mocks.NewMockProductRepository(t)
-			useCase := product.NewProductUseCase(repo)
+			useCase := newProductUseCase(t, repo)
 
 			updated, err := useCase.UpdateProductByExternalId(
 				t.Context(), establishmentID, externalProductID, tt.command,
@@ -389,9 +392,12 @@ func TestProductUseCase_UpdateProductByExternalId_ValidatesNewCategory(t *testin
 			categoryID := "lunch"
 			cmd := product.CommandUpdateProduct{CategoryExternalID: &categoryID}
 			repo := mocks.NewMockProductRepository(t)
-			repo.EXPECT().SelectCategoryByExternalId(mock.Anything, establishmentID, categoryID).
+			repo.EXPECT().SelectProductByExternalId(mock.Anything, establishmentID, externalProductID).
+				Return(&domain.Product{ID: "product-1"}, nil).Once()
+			categoryRepo := mocks.NewMockCategoryRepository(t)
+			categoryRepo.EXPECT().SelectCategoryByExternalId(mock.Anything, establishmentID, categoryID).
 				Return(tt.category, tt.repoErr).Once()
-			useCase := product.NewProductUseCase(repo)
+			useCase := product.NewProductUseCase(repo, categoryRepo, executingTransactor(t))
 
 			updated, err := useCase.UpdateProductByExternalId(
 				t.Context(), establishmentID, externalProductID, cmd,
@@ -418,15 +424,19 @@ func TestProductUseCase_UpdateProductByExternalId_UpdatesMetadata(t *testing.T) 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			expected := &domain.Product{ID: "product-1", ExternalID: externalProductID}
+			current := &domain.Product{ID: "product-1", ExternalID: externalProductID, Name: "Current", Price: 1}
 			repo := mocks.NewMockProductRepository(t)
+			repo.EXPECT().SelectProductByExternalId(mock.Anything, establishmentID, externalProductID).
+				Return(current, nil).Once()
+			categoryRepo := mocks.NewMockCategoryRepository(t)
 			if tt.command.CategoryExternalID != nil {
-				repo.EXPECT().SelectCategoryByExternalId(mock.Anything, establishmentID, categoryID).
+				categoryRepo.EXPECT().SelectCategoryByExternalId(mock.Anything, establishmentID, categoryID).
 					Return(&domain.Category{ID: "category-2"}, nil).Once()
 			}
 			repo.EXPECT().UpdateProductByExternalId(
-				mock.Anything, establishmentID, externalProductID, tt.command,
+				mock.Anything, establishmentID, externalProductID, mock.Anything,
 			).Return(expected, nil).Once()
-			useCase := product.NewProductUseCase(repo)
+			useCase := product.NewProductUseCase(repo, categoryRepo, executingTransactor(t))
 
 			updated, err := useCase.UpdateProductByExternalId(
 				t.Context(), establishmentID, externalProductID, tt.command,
@@ -443,20 +453,25 @@ func TestProductUseCase_UpdateProductByExternalId_HandlesRepositoryFailures(t *t
 	available := true
 	cmd := product.CommandUpdateProduct{Available: &available}
 	tests := []struct {
-		name    string
-		repoErr error
-		wantErr error
+		name     string
+		selected *domain.Product
+		repoErr  error
+		wantErr  error
 	}{
-		{name: "repository error", repoErr: repositoryErr, wantErr: repositoryErr},
+		{name: "repository error", selected: &domain.Product{ID: "product-1"}, repoErr: repositoryErr, wantErr: repositoryErr},
 		{name: "product not found", wantErr: domain.ErrProductNotFound},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := mocks.NewMockProductRepository(t)
-			repo.EXPECT().UpdateProductByExternalId(mock.Anything, establishmentID, externalProductID, cmd).
-				Return(nil, tt.repoErr).Once()
-			useCase := product.NewProductUseCase(repo)
+			repo.EXPECT().SelectProductByExternalId(mock.Anything, establishmentID, externalProductID).
+				Return(tt.selected, nil).Once()
+			if tt.selected != nil {
+				repo.EXPECT().UpdateProductByExternalId(mock.Anything, establishmentID, externalProductID, mock.Anything).
+					Return(nil, tt.repoErr).Once()
+			}
+			useCase := newProductUseCase(t, repo)
 
 			updated, err := useCase.UpdateProductByExternalId(
 				t.Context(), establishmentID, externalProductID, cmd,
@@ -487,7 +502,7 @@ func TestProductUseCase_DeleteProductByExternalId(t *testing.T) {
 			repo := mocks.NewMockProductRepository(t)
 			repo.EXPECT().DeleteProductByExternalId(mock.Anything, establishmentID, externalProductID).
 				Return(tt.result, tt.repoErr).Once()
-			useCase := product.NewProductUseCase(repo)
+			useCase := newProductUseCase(t, repo)
 
 			deleted, err := useCase.DeleteProductByExternalId(t.Context(), establishmentID, externalProductID)
 
@@ -530,10 +545,10 @@ func TestProductUseCase_AdjustProductStock_ValidatesAdjustment(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := mocks.NewMockProductRepository(t)
 			if tt.callRepo {
-				repo.EXPECT().SelectProductByExternalId(mock.Anything, establishmentID, externalProductID).
+				repo.EXPECT().SelectProductByExternalIdForUpdate(mock.Anything, establishmentID, externalProductID).
 					Return(tt.selected, tt.repoErr).Once()
 			}
-			useCase := product.NewProductUseCase(repo)
+			useCase := newProductUseCase(t, repo)
 
 			updated, err := useCase.AdjustProductStock(
 				t.Context(), establishmentID, externalProductID, tt.delta,
@@ -551,7 +566,7 @@ func TestProductUseCase_AdjustProductStock_RejectsDeltaOutsideInt32(t *testing.T
 	}
 
 	repo := mocks.NewMockProductRepository(t)
-	updated, err := product.NewProductUseCase(repo).AdjustProductStock(
+	updated, err := newProductUseCase(t, repo).AdjustProductStock(
 		t.Context(), establishmentID, externalProductID, int(int64(1<<31)),
 	)
 
@@ -575,11 +590,11 @@ func TestProductUseCase_AdjustProductStock_AppliesSignedDelta(t *testing.T) {
 			current := finiteProduct(&tt.quantity)
 			updated := finiteProduct(&tt.result)
 			repo := mocks.NewMockProductRepository(t)
-			repo.EXPECT().SelectProductByExternalId(mock.Anything, establishmentID, externalProductID).
+			repo.EXPECT().SelectProductByExternalIdForUpdate(mock.Anything, establishmentID, externalProductID).
 				Return(current, nil).Once()
 			repo.EXPECT().UpdateProductQuantity(mock.Anything, establishmentID, externalProductID, tt.delta).
 				Return(updated, nil).Once()
-			useCase := product.NewProductUseCase(repo)
+			useCase := newProductUseCase(t, repo)
 
 			actual, err := useCase.AdjustProductStock(
 				t.Context(), establishmentID, externalProductID, tt.delta,
@@ -606,11 +621,11 @@ func TestProductUseCase_AdjustProductStock_HandlesUpdateFailures(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := mocks.NewMockProductRepository(t)
-			repo.EXPECT().SelectProductByExternalId(mock.Anything, establishmentID, externalProductID).
+			repo.EXPECT().SelectProductByExternalIdForUpdate(mock.Anything, establishmentID, externalProductID).
 				Return(finiteProduct(&quantity), nil).Once()
 			repo.EXPECT().UpdateProductQuantity(mock.Anything, establishmentID, externalProductID, 1).
 				Return(nil, tt.repoErr).Once()
-			useCase := product.NewProductUseCase(repo)
+			useCase := newProductUseCase(t, repo)
 
 			updated, err := useCase.AdjustProductStock(t.Context(), establishmentID, externalProductID, 1)
 
@@ -640,4 +655,19 @@ func finiteProduct(quantity *int) *domain.Product {
 		InventoryTypeID: domain.Finite,
 		Quantity:        quantity,
 	}
+}
+
+func newProductUseCase(t *testing.T, repo *mocks.MockProductRepository) *product.ProductUseCase {
+	t.Helper()
+	return product.NewProductUseCase(repo, mocks.NewMockCategoryRepository(t), executingTransactor(t))
+}
+
+func executingTransactor(t *testing.T) *mocks.MockTransactor {
+	t.Helper()
+	tx := mocks.NewMockTransactor(t)
+	tx.EXPECT().WithTx(mock.Anything, mock.Anything).
+		RunAndReturn(func(ctx context.Context, callback func(context.Context) error) error {
+			return callback(ctx)
+		}).Maybe()
+	return tx
 }

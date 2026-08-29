@@ -40,20 +40,6 @@ FROM product
 WHERE establishment_id = $1
 ORDER BY created_at, id;
 
--- name: SelectCategoryByExternalId :one
-SELECT
-    id,
-    establishment_id,
-    external_id,
-    name,
-    description,
-    created_at,
-    updated_at,
-    deleted_at
-FROM category
-WHERE establishment_id = $1
-  AND external_id = $2;
-
 -- name: InsertProduct :one
 INSERT INTO product (
     id,
@@ -104,6 +90,26 @@ SELECT
 FROM product
 WHERE establishment_id = $1
   AND external_id = $2;
+
+-- name: SelectProductByExternalIdForUpdate :one
+SELECT
+    id,
+    external_id,
+    establishment_id,
+    category_id,
+    name,
+    description,
+    available,
+    inventory_type_id,
+    quantity,
+    price,
+    created_at,
+    updated_at,
+    deleted_at
+FROM product
+WHERE establishment_id = $1
+AND external_id = $2
+FOR UPDATE;
 
 -- name: UpdateProductByExternalId :one
 UPDATE product

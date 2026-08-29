@@ -199,42 +199,6 @@ func (q *Queries) InsertProduct(ctx context.Context, arg InsertProductParams) (P
 	return i, err
 }
 
-const selectCategoryByExternalId = `-- name: SelectCategoryByExternalId :one
-SELECT
-    id,
-    establishment_id,
-    external_id,
-    name,
-    description,
-    created_at,
-    updated_at,
-    deleted_at
-FROM category
-WHERE establishment_id = $1
-  AND external_id = $2
-`
-
-type SelectCategoryByExternalIdParams struct {
-	EstablishmentID uuid.UUID `json:"establishment_id"`
-	ExternalID      string    `json:"external_id"`
-}
-
-func (q *Queries) SelectCategoryByExternalId(ctx context.Context, arg SelectCategoryByExternalIdParams) (Category, error) {
-	row := q.db.QueryRow(ctx, selectCategoryByExternalId, arg.EstablishmentID, arg.ExternalID)
-	var i Category
-	err := row.Scan(
-		&i.ID,
-		&i.EstablishmentID,
-		&i.ExternalID,
-		&i.Name,
-		&i.Description,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
-	)
-	return i, err
-}
-
 const selectProductByExternalId = `-- name: SelectProductByExternalId :one
 SELECT
     id,
@@ -262,6 +226,53 @@ type SelectProductByExternalIdParams struct {
 
 func (q *Queries) SelectProductByExternalId(ctx context.Context, arg SelectProductByExternalIdParams) (Product, error) {
 	row := q.db.QueryRow(ctx, selectProductByExternalId, arg.EstablishmentID, arg.ExternalID)
+	var i Product
+	err := row.Scan(
+		&i.ID,
+		&i.ExternalID,
+		&i.EstablishmentID,
+		&i.CategoryID,
+		&i.Name,
+		&i.Description,
+		&i.Available,
+		&i.InventoryTypeID,
+		&i.Quantity,
+		&i.Price,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const selectProductByExternalIdForUpdate = `-- name: SelectProductByExternalIdForUpdate :one
+SELECT
+    id,
+    external_id,
+    establishment_id,
+    category_id,
+    name,
+    description,
+    available,
+    inventory_type_id,
+    quantity,
+    price,
+    created_at,
+    updated_at,
+    deleted_at
+FROM product
+WHERE establishment_id = $1
+AND external_id = $2
+FOR UPDATE
+`
+
+type SelectProductByExternalIdForUpdateParams struct {
+	EstablishmentID uuid.UUID `json:"establishment_id"`
+	ExternalID      string    `json:"external_id"`
+}
+
+func (q *Queries) SelectProductByExternalIdForUpdate(ctx context.Context, arg SelectProductByExternalIdForUpdateParams) (Product, error) {
+	row := q.db.QueryRow(ctx, selectProductByExternalIdForUpdate, arg.EstablishmentID, arg.ExternalID)
 	var i Product
 	err := row.Scan(
 		&i.ID,
