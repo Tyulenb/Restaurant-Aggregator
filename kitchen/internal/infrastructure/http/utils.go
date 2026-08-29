@@ -48,6 +48,18 @@ func OptionalBoolQuery(r *http.Request, name string) (bool, error) {
 	return strconv.ParseBool(value)
 }
 
+func OptionalBoolQueryValue(r *http.Request, name string) (*bool, error) {
+	values, ok := r.URL.Query()[name]
+	if !ok || len(values) == 0 {
+		return nil, nil
+	}
+	value, err := strconv.ParseBool(values[0])
+	if err != nil {
+		return nil, err
+	}
+	return &value, nil
+}
+
 func WriteBadRequest(w http.ResponseWriter) {
 	WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "Request syntax or parameter format is invalid.")
 }

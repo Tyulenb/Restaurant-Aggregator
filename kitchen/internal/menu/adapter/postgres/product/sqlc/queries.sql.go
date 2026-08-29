@@ -491,13 +491,12 @@ func (q *Queries) UpdateProductByExternalId(ctx context.Context, arg UpdateProdu
 
 const updateProductQuantity = `-- name: UpdateProductQuantity :one
 UPDATE product
-SET quantity = (quantity::bigint + $1)::integer,
+SET quantity = $1,
     updated_at = NOW()
 WHERE establishment_id = $2
   AND external_id = $3
   AND deleted_at IS NULL
   AND inventory_type_id = 1
-  AND quantity::bigint + $1 BETWEEN 0 AND 2147483647
 RETURNING
     id,
     external_id,

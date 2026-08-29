@@ -37,10 +37,10 @@ func TestUseCase_FindEstablishments_ReturnsRepositoryEstablishments(t *testing.T
 		},
 	}
 	repository := mocks.NewMockEstablishmentRepository(t)
-	repository.EXPECT().SelectEstablishments(ctx).Return(expected, nil).Once()
+	repository.EXPECT().SelectEstablishments(ctx, (*bool)(nil)).Return(expected, nil).Once()
 	useCase := application.NewUseCase(repository)
 
-	establishments, err := useCase.FindEstablishments(ctx)
+	establishments, err := useCase.FindEstablishments(ctx, nil)
 
 	require.NoError(t, err)
 	assert.Equal(t, expected, establishments)
@@ -49,10 +49,10 @@ func TestUseCase_FindEstablishments_ReturnsRepositoryEstablishments(t *testing.T
 func TestUseCase_FindEstablishments_ReturnsEmptyRepositoryResult(t *testing.T) {
 	ctx := t.Context()
 	repository := mocks.NewMockEstablishmentRepository(t)
-	repository.EXPECT().SelectEstablishments(ctx).Return([]domain.Establishment{}, nil).Once()
+	repository.EXPECT().SelectEstablishments(ctx, (*bool)(nil)).Return([]domain.Establishment{}, nil).Once()
 	useCase := application.NewUseCase(repository)
 
-	establishments, err := useCase.FindEstablishments(ctx)
+	establishments, err := useCase.FindEstablishments(ctx, nil)
 
 	require.NoError(t, err)
 	assert.Empty(t, establishments)
@@ -63,10 +63,10 @@ func TestUseCase_FindEstablishments_PropagatesRepositoryError(t *testing.T) {
 	ctx := t.Context()
 	repositoryErr := errors.New("database unavailable")
 	repository := mocks.NewMockEstablishmentRepository(t)
-	repository.EXPECT().SelectEstablishments(ctx).Return(nil, repositoryErr).Once()
+	repository.EXPECT().SelectEstablishments(ctx, (*bool)(nil)).Return(nil, repositoryErr).Once()
 	useCase := application.NewUseCase(repository)
 
-	establishments, err := useCase.FindEstablishments(ctx)
+	establishments, err := useCase.FindEstablishments(ctx, nil)
 
 	require.ErrorIs(t, err, repositoryErr)
 	assert.Nil(t, establishments)

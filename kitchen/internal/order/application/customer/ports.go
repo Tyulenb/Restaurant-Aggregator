@@ -12,8 +12,6 @@ type OrderRepository interface {
 	FindOrderByIdForUpdate(ctx context.Context, orderID string) (*domain.Order, error)
 	FindOrderByIdempotencyKey(ctx context.Context, idempotencyKey string) (*domain.Order, error)
 
-	FindNewOrdersByEstablishmentId(ctx context.Context, establishmentID string) ([]domain.Order, error)
-
 	UpdateOrderStatus(ctx context.Context, orderID string, status int) (*domain.Order, error)
 	InsertOrderItem(ctx context.Context, oi domain.OrderItem) (*domain.OrderItem, error)
 }
@@ -22,6 +20,7 @@ type ProductRepository interface {
 	FindProductById(ctx context.Context, productID string) (*domain.Product, error)
 	FindProductByIdForUpdate(ctx context.Context, productID string) (*domain.Product, error)
 	DecrementProductQuantity(ctx context.Context, productID string, quantity int) error
+	IncrementProductQuantity(ctx context.Context, productID string, quantity int) error
 }
 
 type EstablishmentRepository interface {

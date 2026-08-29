@@ -1,7 +1,6 @@
 package adapterhttp
 
 import (
-	"encoding/json"
 	"time"
 )
 
@@ -19,29 +18,13 @@ type UpdateCategoryRequest struct {
 	DescriptionSet bool    `json:"-"`
 }
 
-func (r *UpdateCategoryRequest) UnmarshalJSON(data []byte) error {
-	type request UpdateCategoryRequest
-	var decoded request
-	if err := json.Unmarshal(data, &decoded); err != nil {
-		return err
-	}
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(data, &fields); err != nil {
-		return err
-	}
-	*r = UpdateCategoryRequest(decoded)
-	_, r.DescriptionSet = fields["description"]
-
-	return nil
-}
-
 // PartnerCategory is the partner representation of a category.
 type PartnerCategory struct {
 	ID          string     `json:"id"`
 	ExternalID  string     `json:"external_id"`
 	Name        string     `json:"name"`
 	Description *string    `json:"description"`
-	CreatedAt   time.Time  `json:"crjeated_at"`
+	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 	DeletedAt   *time.Time `json:"deleted_at"`
 }

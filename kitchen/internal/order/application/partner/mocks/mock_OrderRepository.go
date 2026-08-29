@@ -38,74 +38,6 @@ func (_m *MockOrderRepository) EXPECT() *MockOrderRepository_Expecter {
 	return &MockOrderRepository_Expecter{mock: &_m.Mock}
 }
 
-// FindNewOrdersByEstablishmentId provides a mock function for the type MockOrderRepository
-func (_mock *MockOrderRepository) FindNewOrdersByEstablishmentId(ctx context.Context, establishmentID string) ([]domain.Order, error) {
-	ret := _mock.Called(ctx, establishmentID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for FindNewOrdersByEstablishmentId")
-	}
-
-	var r0 []domain.Order
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]domain.Order, error)); ok {
-		return returnFunc(ctx, establishmentID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []domain.Order); ok {
-		r0 = returnFunc(ctx, establishmentID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]domain.Order)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, establishmentID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockOrderRepository_FindNewOrdersByEstablishmentId_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindNewOrdersByEstablishmentId'
-type MockOrderRepository_FindNewOrdersByEstablishmentId_Call struct {
-	*mock.Call
-}
-
-// FindNewOrdersByEstablishmentId is a helper method to define mock.On call
-//   - ctx context.Context
-//   - establishmentID string
-func (_e *MockOrderRepository_Expecter) FindNewOrdersByEstablishmentId(ctx any, establishmentID any) *MockOrderRepository_FindNewOrdersByEstablishmentId_Call {
-	return &MockOrderRepository_FindNewOrdersByEstablishmentId_Call{Call: _e.mock.On("FindNewOrdersByEstablishmentId", ctx, establishmentID)}
-}
-
-func (_c *MockOrderRepository_FindNewOrdersByEstablishmentId_Call) Run(run func(ctx context.Context, establishmentID string)) *MockOrderRepository_FindNewOrdersByEstablishmentId_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockOrderRepository_FindNewOrdersByEstablishmentId_Call) Return(orders []domain.Order, err error) *MockOrderRepository_FindNewOrdersByEstablishmentId_Call {
-	_c.Call.Return(orders, err)
-	return _c
-}
-
-func (_c *MockOrderRepository_FindNewOrdersByEstablishmentId_Call) RunAndReturn(run func(ctx context.Context, establishmentID string) ([]domain.Order, error)) *MockOrderRepository_FindNewOrdersByEstablishmentId_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // FindOrderByIdForUpdate provides a mock function for the type MockOrderRepository
 func (_mock *MockOrderRepository) FindOrderByIdForUpdate(ctx context.Context, orderID string) (*domain.Order, error) {
 	ret := _mock.Called(ctx, orderID)
@@ -242,6 +174,80 @@ func (_c *MockOrderRepository_FindOrderByIdempotencyKey_Call) RunAndReturn(run f
 	return _c
 }
 
+// FindOrdersByEstablishmentID provides a mock function for the type MockOrderRepository
+func (_mock *MockOrderRepository) FindOrdersByEstablishmentID(ctx context.Context, establishmentID string, status *int) ([]domain.Order, error) {
+	ret := _mock.Called(ctx, establishmentID, status)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindOrdersByEstablishmentID")
+	}
+
+	var r0 []domain.Order
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *int) ([]domain.Order, error)); ok {
+		return returnFunc(ctx, establishmentID, status)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *int) []domain.Order); ok {
+		r0 = returnFunc(ctx, establishmentID, status)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]domain.Order)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, *int) error); ok {
+		r1 = returnFunc(ctx, establishmentID, status)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockOrderRepository_FindOrdersByEstablishmentID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindOrdersByEstablishmentID'
+type MockOrderRepository_FindOrdersByEstablishmentID_Call struct {
+	*mock.Call
+}
+
+// FindOrdersByEstablishmentID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - establishmentID string
+//   - status *int
+func (_e *MockOrderRepository_Expecter) FindOrdersByEstablishmentID(ctx any, establishmentID any, status any) *MockOrderRepository_FindOrdersByEstablishmentID_Call {
+	return &MockOrderRepository_FindOrdersByEstablishmentID_Call{Call: _e.mock.On("FindOrdersByEstablishmentID", ctx, establishmentID, status)}
+}
+
+func (_c *MockOrderRepository_FindOrdersByEstablishmentID_Call) Run(run func(ctx context.Context, establishmentID string, status *int)) *MockOrderRepository_FindOrdersByEstablishmentID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 *int
+		if args[2] != nil {
+			arg2 = args[2].(*int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOrderRepository_FindOrdersByEstablishmentID_Call) Return(orders []domain.Order, err error) *MockOrderRepository_FindOrdersByEstablishmentID_Call {
+	_c.Call.Return(orders, err)
+	return _c
+}
+
+func (_c *MockOrderRepository_FindOrdersByEstablishmentID_Call) RunAndReturn(run func(ctx context.Context, establishmentID string, status *int) ([]domain.Order, error)) *MockOrderRepository_FindOrdersByEstablishmentID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // InsertOrder provides a mock function for the type MockOrderRepository
 func (_mock *MockOrderRepository) InsertOrder(ctx context.Context, order domain.Order) (*domain.Order, error) {
 	ret := _mock.Called(ctx, order)
@@ -306,6 +312,80 @@ func (_c *MockOrderRepository_InsertOrder_Call) Return(order1 *domain.Order, err
 }
 
 func (_c *MockOrderRepository_InsertOrder_Call) RunAndReturn(run func(ctx context.Context, order domain.Order) (*domain.Order, error)) *MockOrderRepository_InsertOrder_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RejectOrder provides a mock function for the type MockOrderRepository
+func (_mock *MockOrderRepository) RejectOrder(ctx context.Context, orderID string, reason *string) (*domain.Order, error) {
+	ret := _mock.Called(ctx, orderID, reason)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RejectOrder")
+	}
+
+	var r0 *domain.Order
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *string) (*domain.Order, error)); ok {
+		return returnFunc(ctx, orderID, reason)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *string) *domain.Order); ok {
+		r0 = returnFunc(ctx, orderID, reason)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Order)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, *string) error); ok {
+		r1 = returnFunc(ctx, orderID, reason)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockOrderRepository_RejectOrder_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RejectOrder'
+type MockOrderRepository_RejectOrder_Call struct {
+	*mock.Call
+}
+
+// RejectOrder is a helper method to define mock.On call
+//   - ctx context.Context
+//   - orderID string
+//   - reason *string
+func (_e *MockOrderRepository_Expecter) RejectOrder(ctx any, orderID any, reason any) *MockOrderRepository_RejectOrder_Call {
+	return &MockOrderRepository_RejectOrder_Call{Call: _e.mock.On("RejectOrder", ctx, orderID, reason)}
+}
+
+func (_c *MockOrderRepository_RejectOrder_Call) Run(run func(ctx context.Context, orderID string, reason *string)) *MockOrderRepository_RejectOrder_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 *string
+		if args[2] != nil {
+			arg2 = args[2].(*string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOrderRepository_RejectOrder_Call) Return(order *domain.Order, err error) *MockOrderRepository_RejectOrder_Call {
+	_c.Call.Return(order, err)
+	return _c
+}
+
+func (_c *MockOrderRepository_RejectOrder_Call) RunAndReturn(run func(ctx context.Context, orderID string, reason *string) (*domain.Order, error)) *MockOrderRepository_RejectOrder_Call {
 	_c.Call.Return(run)
 	return _c
 }

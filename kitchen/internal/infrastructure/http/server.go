@@ -5,16 +5,17 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/infrastructure/config"
 )
 
 type Handler interface {
-	RegisterRoutes(router *http.ServeMux)
+	RegisterRoutes(router *Router)
 }
 
 func ServerRun(cfg *config.Config, handlers ...Handler) error {
-	router := http.NewServeMux()
+	router := NewRouter()
 
 	for _, handler := range handlers {
 		handler.RegisterRoutes(router)
@@ -27,7 +28,7 @@ func ServerRun(cfg *config.Config, handlers ...Handler) error {
 		WriteTimeout: cfg.WriteTimeout,
 		IdleTimeout:  cfg.IdleTimeout,
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	srvErr := make(chan error, 1)

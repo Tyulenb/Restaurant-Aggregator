@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	transactor "github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/infrastructure/postgres"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/adapter/postgres/product/sqlc"
+	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/application/establishment"
 	application "github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/application/product"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/domain"
 )
@@ -24,6 +25,7 @@ type ProductRepository struct {
 }
 
 var _ application.ProductRepository = (*ProductRepository)(nil)
+var _ establishment.ProductRepository = (*ProductRepository)(nil)
 
 func NewProductRepository(db sqlc.DBTX) *ProductRepository {
 	return &ProductRepository{queries: sqlc.New(db)}
@@ -226,19 +228,19 @@ func (r *ProductRepository) DeleteProductByCategoryId(
 func (r *ProductRepository) UpdateProductQuantity(
 	ctx context.Context,
 	establishmentID, externalID string,
-	delta int,
+	newQuantity int,
 ) (*domain.Product, error) {
 	id, err := parseUUID("establishment ID", establishmentID)
 	if err != nil {
 		return nil, err
 	}
-	deltaValue, err := int4FromInt(delta)
+	quantityValue, err := int4FromInt(newQuantity)
 	if err != nil {
 		return nil, fmt.Errorf("convert product quantity: %w", err)
 	}
 
 	row, err := r.getQueries(ctx).UpdateProductQuantity(ctx, sqlc.UpdateProductQuantityParams{
-		Quantity:        deltaValue,
+		Quantity:        quantityValue,
 		EstablishmentID: id,
 		ExternalID:      externalID,
 	})

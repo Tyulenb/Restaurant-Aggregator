@@ -23,20 +23,21 @@ type CategoryUseCase interface {
 }
 
 type CategoryHandler struct {
-	logger  *slog.Logger
-	usecase CategoryUseCase
+	logger         *slog.Logger
+	usecase        CategoryUseCase
+	authMiddleware infrahttp.Middleware
 }
 
-func NewCategoryHandler(logger *slog.Logger, usecase CategoryUseCase) *CategoryHandler {
-	return &CategoryHandler{logger: logger, usecase: usecase}
+func NewCategoryHandler(logger *slog.Logger, usecase CategoryUseCase, authMiddleware infrahttp.Middleware) *CategoryHandler {
+	return &CategoryHandler{logger: logger, usecase: usecase, authMiddleware: authMiddleware}
 }
 
-func (h *CategoryHandler) RegisterRoutes(router *http.ServeMux) {
-	router.HandleFunc("GET /api/partner/v1/categories", h.getEstablishmentCategories)
-	router.HandleFunc("POST /api/partner/v1/categories", h.createCategory)
-	router.HandleFunc("GET /api/partner/v1/categories/{externalCategoryId}", h.getCategory)
-	router.HandleFunc("PATCH /api/partner/v1/categories/{externalCategoryId}", h.patchCategory)
-	router.HandleFunc("DELETE /api/partner/v1/categories/{externalCategoryId}", h.deleteCategory)
+func (h *CategoryHandler) RegisterRoutes(router *infrahttp.Router) {
+	router.Handle("GET /api/partner/v1/categories", h.getEstablishmentCategories, h.authMiddleware)
+	router.Handle("POST /api/partner/v1/categories", h.createCategory, h.authMiddleware)
+	router.Handle("GET /api/partner/v1/categories/{externalCategoryId}", h.getCategory, h.authMiddleware)
+	router.Handle("PATCH /api/partner/v1/categories/{externalCategoryId}", h.patchCategory, h.authMiddleware)
+	router.Handle("DELETE /api/partner/v1/categories/{externalCategoryId}", h.deleteCategory, h.authMiddleware)
 }
 
 func (h *CategoryHandler) getEstablishmentCategories(w http.ResponseWriter, r *http.Request) {

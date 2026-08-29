@@ -28,10 +28,10 @@ func NewOrderHandler(logger *slog.Logger, usecase CustomerOrderUsecase) *Custome
 	return &CustomerHandler{logger: logger, usecase: usecase}
 }
 
-func (h *CustomerHandler) RegisterRoutes(router *http.ServeMux) {
-	router.HandleFunc("POST /api/v1/orders", h.createOrder)
-	router.HandleFunc("GET /api/v1/orders/{orderId}", h.getOrder)
-	router.HandleFunc("POST /api/v1/orders/{orderId}/cancel", h.cancelOrder)
+func (h *CustomerHandler) RegisterRoutes(router *infrahttp.Router) {
+	router.Handle("POST /api/v1/orders", h.createOrder, infrahttp.IdempotencyKeyMiddleware)
+	router.Handle("GET /api/v1/orders/{orderId}", h.getOrder)
+	router.Handle("POST /api/v1/orders/{orderId}/cancel", h.cancelOrder)
 }
 
 func (h *CustomerHandler) createOrder(w http.ResponseWriter, r *http.Request) {

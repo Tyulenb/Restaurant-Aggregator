@@ -521,23 +521,20 @@ func TestProductUseCase_AdjustProductStock_ValidatesAdjustment(t *testing.T) {
 	repositoryErr := errors.New("database unavailable")
 	deletedAt := time.Now()
 	quantity := 2
-	maximumQuantity := int(1<<31 - 1)
 	tests := []struct {
-		name     string
-		delta    int
-		selected *domain.Product
-		repoErr  error
-		wantErr  error
-		callRepo bool
+		name        string
+		newQuantity int
+		selected    *domain.Product
+		repoErr     error
+		wantErr     error
+		callRepo    bool
 	}{
-		{name: "zero delta", wantErr: domain.ErrProductValidation},
-		{name: "select error", delta: 1, repoErr: repositoryErr, wantErr: repositoryErr, callRepo: true},
-		{name: "missing product", delta: 1, wantErr: domain.ErrProductNotFound, callRepo: true},
-		{name: "deleted product", delta: 1, selected: finiteProduct(&quantity), wantErr: domain.ErrProductNotFound, callRepo: true},
-		{name: "untracked product", delta: 1, selected: &domain.Product{InventoryTypeID: domain.Unlimited}, wantErr: domain.ErrStockAdjustmentConflict, callRepo: true},
-		{name: "finite product without quantity", delta: 1, selected: &domain.Product{InventoryTypeID: domain.Finite}, wantErr: domain.ErrStockAdjustmentConflict, callRepo: true},
-		{name: "negative resulting quantity", delta: -3, selected: finiteProduct(&quantity), wantErr: domain.ErrStockAdjustmentConflict, callRepo: true},
-		{name: "quantity overflow", delta: 1, selected: finiteProduct(&maximumQuantity), wantErr: domain.ErrStockAdjustmentConflict, callRepo: true},
+		{name: "negative quantity", newQuantity: -1, wantErr: domain.ErrProductValidation},
+		{name: "select error", newQuantity: 1, repoErr: repositoryErr, wantErr: repositoryErr, callRepo: true},
+		{name: "missing product", newQuantity: 1, wantErr: domain.ErrProductNotFound, callRepo: true},
+		{name: "deleted product", newQuantity: 1, selected: finiteProduct(&quantity), wantErr: domain.ErrProductNotFound, callRepo: true},
+		{name: "untracked product", newQuantity: 1, selected: &domain.Product{InventoryTypeID: domain.Unlimited}, wantErr: domain.ErrStockAdjustmentConflict, callRepo: true},
+		{name: "finite product without quantity", newQuantity: 1, selected: &domain.Product{InventoryTypeID: domain.Finite}, wantErr: domain.ErrStockAdjustmentConflict, callRepo: true},
 	}
 	tests[3].selected.DeletedAt = &deletedAt
 
@@ -551,7 +548,7 @@ func TestProductUseCase_AdjustProductStock_ValidatesAdjustment(t *testing.T) {
 			useCase := newProductUseCase(t, repo)
 
 			updated, err := useCase.AdjustProductStock(
-				t.Context(), establishmentID, externalProductID, tt.delta,
+				t.Context(), establishmentID, externalProductID, tt.newQuantity,
 			)
 
 			require.ErrorIs(t, err, tt.wantErr)
@@ -560,7 +557,7 @@ func TestProductUseCase_AdjustProductStock_ValidatesAdjustment(t *testing.T) {
 	}
 }
 
-func TestProductUseCase_AdjustProductStock_RejectsDeltaOutsideInt32(t *testing.T) {
+func TestProductUseCase_AdjustProductStock_RejectsQuantityOutsideInt32(t *testing.T) {
 	if strconv.IntSize < 64 {
 		t.Skip("Go int cannot represent a value outside the int32 range")
 	}
@@ -574,30 +571,29 @@ func TestProductUseCase_AdjustProductStock_RejectsDeltaOutsideInt32(t *testing.T
 	assert.Nil(t, updated)
 }
 
-func TestProductUseCase_AdjustProductStock_AppliesSignedDelta(t *testing.T) {
+func TestProductUseCase_AdjustProductStock_SetsAbsoluteQuantity(t *testing.T) {
 	tests := []struct {
-		name     string
-		quantity int
-		delta    int
-		result   int
+		name        string
+		current     int
+		newQuantity int
 	}{
-		{name: "increase", quantity: 2, delta: 3, result: 5},
-		{name: "decrease to zero", quantity: 2, delta: -2, result: 0},
+		{name: "replace current quantity", current: 2, newQuantity: 3},
+		{name: "set quantity to zero", current: 2, newQuantity: 0},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			current := finiteProduct(&tt.quantity)
-			updated := finiteProduct(&tt.result)
+			current := finiteProduct(&tt.current)
+			updated := finiteProduct(&tt.newQuantity)
 			repo := mocks.NewMockProductRepository(t)
 			repo.EXPECT().SelectProductByExternalIdForUpdate(mock.Anything, establishmentID, externalProductID).
 				Return(current, nil).Once()
-			repo.EXPECT().UpdateProductQuantity(mock.Anything, establishmentID, externalProductID, tt.delta).
+			repo.EXPECT().UpdateProductQuantity(mock.Anything, establishmentID, externalProductID, tt.newQuantity).
 				Return(updated, nil).Once()
 			useCase := newProductUseCase(t, repo)
 
 			actual, err := useCase.AdjustProductStock(
-				t.Context(), establishmentID, externalProductID, tt.delta,
+				t.Context(), establishmentID, externalProductID, tt.newQuantity,
 			)
 
 			require.NoError(t, err)

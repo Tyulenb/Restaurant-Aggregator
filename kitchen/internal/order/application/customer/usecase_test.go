@@ -368,6 +368,11 @@ func TestCustomerUseCase_FindOrder(t *testing.T) {
 
 func TestCustomerUseCase_CancelOrder(t *testing.T) {
 	repositoryErr := errors.New("database unavailable")
+	cancelled := &domain.Order{
+		ID:       orderID,
+		StatusID: domain.OrderCanceled,
+		Items:    []domain.OrderItem{{ProductID: productID, Quantity: 3}},
+	}
 	tests := []struct {
 		name      string
 		found     *domain.Order
@@ -380,21 +385,36 @@ func TestCustomerUseCase_CancelOrder(t *testing.T) {
 		{name: "lookup error", findErr: repositoryErr, wantErr: repositoryErr},
 		{name: "missing order", wantErr: domain.ErrOrderNotFound},
 		{name: "already cancelled", found: &domain.Order{ID: orderID, StatusID: domain.OrderCanceled}},
-		{name: "created order", found: &domain.Order{ID: orderID, StatusID: domain.OrderCreated}, updated: &domain.Order{ID: orderID, StatusID: domain.OrderCanceled}, update: true},
+		{
+			name: "created order",
+			found: &domain.Order{
+				ID: orderID, StatusID: domain.OrderCreated,
+				Items: []domain.OrderItem{{ProductID: productID, Quantity: 3}},
+			},
+			updated: cancelled,
+			update:  true,
+		},
 		{name: "update error", found: &domain.Order{ID: orderID, StatusID: domain.OrderCreated}, updateErr: repositoryErr, wantErr: repositoryErr, update: true},
 		{name: "accepted order", found: &domain.Order{ID: orderID, StatusID: domain.OrderAccepted}, wantErr: domain.ErrOrderCannotBeCancelled},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			useCase, orderRepo, _, _, _ := newUseCase(t)
-			orderRepo.EXPECT().FindOrderById(mock.Anything, orderID).Return(tt.found, tt.findErr).Once()
+			useCase, orderRepo, productRepo, _, tx := newUseCase(t)
+			ctx, txCtx := transactionContexts(t)
+			expectTransaction(tx, ctx, txCtx)
+			orderRepo.EXPECT().FindOrderByIdForUpdate(txCtx, orderID).Return(tt.found, tt.findErr).Once()
 			if tt.update {
-				orderRepo.EXPECT().UpdateOrderStatus(mock.Anything, orderID, int(domain.OrderCanceled)).
+				orderRepo.EXPECT().UpdateOrderStatus(txCtx, orderID, int(domain.OrderCanceled)).
 					Return(tt.updated, tt.updateErr).Once()
 			}
+			if tt.updated != nil && tt.updateErr == nil {
+				productRepo.EXPECT().FindProductByIdForUpdate(txCtx, productID).
+					Return(validProduct(productID, domain.Finite, nil), nil).Once()
+				productRepo.EXPECT().IncrementProductQuantity(txCtx, productID, 3).Return(nil).Once()
+			}
 
-			actual, err := useCase.CancelOrder(t.Context(), orderID)
+			actual, err := useCase.CancelOrder(ctx, orderID)
 
 			if tt.wantErr != nil {
 				require.ErrorIs(t, err, tt.wantErr)
@@ -409,6 +429,34 @@ func TestCustomerUseCase_CancelOrder(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCustomerUseCase_CancelOrder_RequiresAndPropagatesTransaction(t *testing.T) {
+	t.Run("missing transactor", func(t *testing.T) {
+		useCase := customer.NewCustomerUseCase(
+			mocks.NewMockOrderRepository(t),
+			mocks.NewMockProductRepository(t),
+			mocks.NewMockEstablishmentRepository(t),
+			nil,
+		)
+
+		order, err := useCase.CancelOrder(t.Context(), orderID)
+
+		require.ErrorContains(t, err, "transactor is not configured")
+		assert.Nil(t, order)
+	})
+
+	t.Run("transaction error", func(t *testing.T) {
+		transactionErr := errors.New("begin transaction")
+		useCase, _, _, _, tx := newUseCase(t)
+		tx.EXPECT().WithTx(mock.Anything, mock.Anything).Return(transactionErr).Once()
+
+		order, err := useCase.CancelOrder(t.Context(), orderID)
+
+		require.ErrorIs(t, err, transactionErr)
+		assert.ErrorContains(t, err, `cancel order "`+orderID+`"`)
+		assert.Nil(t, order)
+	})
 }
 
 func newUseCase(t *testing.T) (

@@ -84,9 +84,10 @@ SELECT
     created_at,
     updated_at
 FROM orders
-WHERE idempotency_key = $1;
+WHERE idempotency_key = $1
+FOR UPDATE;
 
--- name: SelectCreatedOrdersByEstablishmentID :many
+-- name: SelectOrdersByEstablishmentID :many
 SELECT
     id,
     idempotency_key,
@@ -100,7 +101,15 @@ SELECT
     updated_at
 FROM orders
 WHERE establishment_id = $1
-  AND status_id = 1
+ORDER BY created_at, id;
+
+-- name: SelectOrdersByEstablishmentIDAndStatus :many
+SELECT
+    id, idempotency_key, establishment_id, customer_id, delivery_id,
+    status_id, total_price, rejection_reason, created_at, updated_at
+FROM orders
+WHERE establishment_id = $1
+  AND status_id = $2
 ORDER BY created_at, id;
 
 -- name: UpdateOrderStatusByID :one
@@ -119,3 +128,13 @@ RETURNING
     rejection_reason,
     created_at,
     updated_at;
+
+-- name: RejectOrderByID :one
+UPDATE orders
+SET status_id = 6,
+    rejection_reason = $1,
+    updated_at = NOW()
+WHERE id = $2
+RETURNING
+    id, idempotency_key, establishment_id, customer_id, delivery_id,
+    status_id, total_price, rejection_reason, created_at, updated_at;

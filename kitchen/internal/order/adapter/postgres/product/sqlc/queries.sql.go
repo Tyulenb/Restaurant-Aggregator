@@ -34,6 +34,27 @@ func (q *Queries) DecrementProductQuantity(ctx context.Context, arg DecrementPro
 	return result.RowsAffected(), nil
 }
 
+const incrementProductQuantity = `-- name: IncrementProductQuantity :execrows
+UPDATE product
+SET quantity = quantity + $2,
+    updated_at = NOW()
+WHERE id = $1
+  AND inventory_type_id = 1
+`
+
+type IncrementProductQuantityParams struct {
+	ID       uuid.UUID   `json:"id"`
+	Quantity pgtype.Int4 `json:"quantity"`
+}
+
+func (q *Queries) IncrementProductQuantity(ctx context.Context, arg IncrementProductQuantityParams) (int64, error) {
+	result, err := q.db.Exec(ctx, incrementProductQuantity, arg.ID, arg.Quantity)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const selectProductByID = `-- name: SelectProductByID :one
 SELECT
     id,

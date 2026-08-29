@@ -127,53 +127,38 @@ func (q *Queries) InsertOrderItem(ctx context.Context, arg InsertOrderItemParams
 	return i, err
 }
 
-const selectCreatedOrdersByEstablishmentID = `-- name: SelectCreatedOrdersByEstablishmentID :many
-SELECT
-    id,
-    idempotency_key,
-    establishment_id,
-    customer_id,
-    delivery_id,
-    status_id,
-    total_price,
-    rejection_reason,
-    created_at,
-    updated_at
-FROM orders
-WHERE establishment_id = $1
-  AND status_id = 1
-ORDER BY created_at, id
+const rejectOrderByID = `-- name: RejectOrderByID :one
+UPDATE orders
+SET status_id = 6,
+    rejection_reason = $1,
+    updated_at = NOW()
+WHERE id = $2
+RETURNING
+    id, idempotency_key, establishment_id, customer_id, delivery_id,
+    status_id, total_price, rejection_reason, created_at, updated_at
 `
 
-func (q *Queries) SelectCreatedOrdersByEstablishmentID(ctx context.Context, establishmentID uuid.UUID) ([]Order, error) {
-	rows, err := q.db.Query(ctx, selectCreatedOrdersByEstablishmentID, establishmentID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Order
-	for rows.Next() {
-		var i Order
-		if err := rows.Scan(
-			&i.ID,
-			&i.IdempotencyKey,
-			&i.EstablishmentID,
-			&i.CustomerID,
-			&i.DeliveryID,
-			&i.StatusID,
-			&i.TotalPrice,
-			&i.RejectionReason,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+type RejectOrderByIDParams struct {
+	RejectionReason pgtype.Text `json:"rejection_reason"`
+	ID              uuid.UUID   `json:"id"`
+}
+
+func (q *Queries) RejectOrderByID(ctx context.Context, arg RejectOrderByIDParams) (Order, error) {
+	row := q.db.QueryRow(ctx, rejectOrderByID, arg.RejectionReason, arg.ID)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.IdempotencyKey,
+		&i.EstablishmentID,
+		&i.CustomerID,
+		&i.DeliveryID,
+		&i.StatusID,
+		&i.TotalPrice,
+		&i.RejectionReason,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const selectOrderByID = `-- name: SelectOrderByID :one
@@ -259,6 +244,7 @@ SELECT
     updated_at
 FROM orders
 WHERE idempotency_key = $1
+FOR UPDATE
 `
 
 func (q *Queries) SelectOrderByIdempotencyKey(ctx context.Context, idempotencyKey uuid.UUID) (Order, error) {
@@ -305,6 +291,100 @@ func (q *Queries) SelectOrderItemsByOrderID(ctx context.Context, orderID uuid.UU
 			&i.UnitPrice,
 			&i.Quantity,
 			&i.TotalSum,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectOrdersByEstablishmentID = `-- name: SelectOrdersByEstablishmentID :many
+SELECT
+    id,
+    idempotency_key,
+    establishment_id,
+    customer_id,
+    delivery_id,
+    status_id,
+    total_price,
+    rejection_reason,
+    created_at,
+    updated_at
+FROM orders
+WHERE establishment_id = $1
+ORDER BY created_at, id
+`
+
+func (q *Queries) SelectOrdersByEstablishmentID(ctx context.Context, establishmentID uuid.UUID) ([]Order, error) {
+	rows, err := q.db.Query(ctx, selectOrdersByEstablishmentID, establishmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.IdempotencyKey,
+			&i.EstablishmentID,
+			&i.CustomerID,
+			&i.DeliveryID,
+			&i.StatusID,
+			&i.TotalPrice,
+			&i.RejectionReason,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectOrdersByEstablishmentIDAndStatus = `-- name: SelectOrdersByEstablishmentIDAndStatus :many
+SELECT
+    id, idempotency_key, establishment_id, customer_id, delivery_id,
+    status_id, total_price, rejection_reason, created_at, updated_at
+FROM orders
+WHERE establishment_id = $1
+  AND status_id = $2
+ORDER BY created_at, id
+`
+
+type SelectOrdersByEstablishmentIDAndStatusParams struct {
+	EstablishmentID uuid.UUID `json:"establishment_id"`
+	StatusID        int32     `json:"status_id"`
+}
+
+func (q *Queries) SelectOrdersByEstablishmentIDAndStatus(ctx context.Context, arg SelectOrdersByEstablishmentIDAndStatusParams) ([]Order, error) {
+	rows, err := q.db.Query(ctx, selectOrdersByEstablishmentIDAndStatus, arg.EstablishmentID, arg.StatusID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.IdempotencyKey,
+			&i.EstablishmentID,
+			&i.CustomerID,
+			&i.DeliveryID,
+			&i.StatusID,
+			&i.TotalPrice,
+			&i.RejectionReason,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

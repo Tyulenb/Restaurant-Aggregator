@@ -3,6 +3,7 @@ package domain
 import "errors"
 
 var (
+	ErrEstablishmentNotFound      = errors.New("establishment not found")
 	ErrCategoryNotFound           = errors.New("category not found")
 	ErrCategoryConflict           = errors.New("category external ID already exists")
 	ErrCategoryValidation         = errors.New("category validation failed")

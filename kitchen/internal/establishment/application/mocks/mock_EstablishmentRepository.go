@@ -38,9 +38,77 @@ func (_m *MockEstablishmentRepository) EXPECT() *MockEstablishmentRepository_Exp
 	return &MockEstablishmentRepository_Expecter{mock: &_m.Mock}
 }
 
+// SelectEstablishmentById provides a mock function for the type MockEstablishmentRepository
+func (_mock *MockEstablishmentRepository) SelectEstablishmentById(ctx context.Context, establishmentId string) (*domain.Establishment, error) {
+	ret := _mock.Called(ctx, establishmentId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SelectEstablishmentById")
+	}
+
+	var r0 *domain.Establishment
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*domain.Establishment, error)); ok {
+		return returnFunc(ctx, establishmentId)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *domain.Establishment); ok {
+		r0 = returnFunc(ctx, establishmentId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Establishment)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, establishmentId)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockEstablishmentRepository_SelectEstablishmentById_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SelectEstablishmentById'
+type MockEstablishmentRepository_SelectEstablishmentById_Call struct {
+	*mock.Call
+}
+
+// SelectEstablishmentById is a helper method to define mock.On call
+//   - ctx context.Context
+//   - establishmentId string
+func (_e *MockEstablishmentRepository_Expecter) SelectEstablishmentById(ctx any, establishmentId any) *MockEstablishmentRepository_SelectEstablishmentById_Call {
+	return &MockEstablishmentRepository_SelectEstablishmentById_Call{Call: _e.mock.On("SelectEstablishmentById", ctx, establishmentId)}
+}
+
+func (_c *MockEstablishmentRepository_SelectEstablishmentById_Call) Run(run func(ctx context.Context, establishmentId string)) *MockEstablishmentRepository_SelectEstablishmentById_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockEstablishmentRepository_SelectEstablishmentById_Call) Return(establishment *domain.Establishment, err error) *MockEstablishmentRepository_SelectEstablishmentById_Call {
+	_c.Call.Return(establishment, err)
+	return _c
+}
+
+func (_c *MockEstablishmentRepository_SelectEstablishmentById_Call) RunAndReturn(run func(ctx context.Context, establishmentId string) (*domain.Establishment, error)) *MockEstablishmentRepository_SelectEstablishmentById_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SelectEstablishments provides a mock function for the type MockEstablishmentRepository
-func (_mock *MockEstablishmentRepository) SelectEstablishments(ctx context.Context) ([]domain.Establishment, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockEstablishmentRepository) SelectEstablishments(ctx context.Context, available *bool) ([]domain.Establishment, error) {
+	ret := _mock.Called(ctx, available)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SelectEstablishments")
@@ -48,18 +116,18 @@ func (_mock *MockEstablishmentRepository) SelectEstablishments(ctx context.Conte
 
 	var r0 []domain.Establishment
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]domain.Establishment, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *bool) ([]domain.Establishment, error)); ok {
+		return returnFunc(ctx, available)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) []domain.Establishment); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *bool) []domain.Establishment); ok {
+		r0 = returnFunc(ctx, available)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]domain.Establishment)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *bool) error); ok {
+		r1 = returnFunc(ctx, available)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -73,18 +141,24 @@ type MockEstablishmentRepository_SelectEstablishments_Call struct {
 
 // SelectEstablishments is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockEstablishmentRepository_Expecter) SelectEstablishments(ctx any) *MockEstablishmentRepository_SelectEstablishments_Call {
-	return &MockEstablishmentRepository_SelectEstablishments_Call{Call: _e.mock.On("SelectEstablishments", ctx)}
+//   - available *bool
+func (_e *MockEstablishmentRepository_Expecter) SelectEstablishments(ctx any, available any) *MockEstablishmentRepository_SelectEstablishments_Call {
+	return &MockEstablishmentRepository_SelectEstablishments_Call{Call: _e.mock.On("SelectEstablishments", ctx, available)}
 }
 
-func (_c *MockEstablishmentRepository_SelectEstablishments_Call) Run(run func(ctx context.Context)) *MockEstablishmentRepository_SelectEstablishments_Call {
+func (_c *MockEstablishmentRepository_SelectEstablishments_Call) Run(run func(ctx context.Context, available *bool)) *MockEstablishmentRepository_SelectEstablishments_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 *bool
+		if args[1] != nil {
+			arg1 = args[1].(*bool)
+		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -95,7 +169,7 @@ func (_c *MockEstablishmentRepository_SelectEstablishments_Call) Return(establis
 	return _c
 }
 
-func (_c *MockEstablishmentRepository_SelectEstablishments_Call) RunAndReturn(run func(ctx context.Context) ([]domain.Establishment, error)) *MockEstablishmentRepository_SelectEstablishments_Call {
+func (_c *MockEstablishmentRepository_SelectEstablishments_Call) RunAndReturn(run func(ctx context.Context, available *bool) ([]domain.Establishment, error)) *MockEstablishmentRepository_SelectEstablishments_Call {
 	_c.Call.Return(run)
 	return _c
 }

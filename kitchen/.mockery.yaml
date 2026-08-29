@@ -24,3 +24,6 @@ packages:
     github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/application/product:
         config:
             all: true
+    github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/application/establishment:
+        config:
+            all: true

@@ -7,24 +7,24 @@ import (
 
 // CreateProductRequest is the payload for creating a product.
 type CreateProductRequest struct {
-	ExternalID    string  `json:"external_id"`
-	CategoryID    string  `json:"category_id"`
-	Name          string  `json:"name"`
-	Description   *string `json:"description"`
-	Price         float32 `json:"price"`
-	Available     bool    `json:"available"`
-	InventoryType string  `json:"inventory_type"`
-	Quantity      *int    `json:"quantity"`
+	ExternalID         string  `json:"external_id"`
+	CategoryExternalID string  `json:"category_external_id"`
+	Name               string  `json:"name"`
+	Description        *string `json:"description"`
+	Price              float32 `json:"price"`
+	Available          bool    `json:"available"`
+	InventoryType      string  `json:"inventory_type"`
+	Quantity           *int    `json:"quantity"`
 }
 
 // UpdateProductRequest contains product metadata that may be changed.
 type UpdateProductRequest struct {
-	CategoryID     *string  `json:"category_id"`
-	Name           *string  `json:"name"`
-	Description    *string  `json:"description"`
-	DescriptionSet bool     `json:"-"`
-	Price          *float32 `json:"price"`
-	Available      *bool    `json:"available"`
+	CategoryExternalID *string  `json:"category_external_id"`
+	Name               *string  `json:"name"`
+	Description        *string  `json:"description"`
+	DescriptionSet     bool     `json:"-"`
+	Price              *float32 `json:"price"`
+	Available          *bool    `json:"available"`
 }
 
 func (r *UpdateProductRequest) UnmarshalJSON(data []byte) error {
@@ -45,18 +45,18 @@ func (r *UpdateProductRequest) UnmarshalJSON(data []byte) error {
 
 // PartnerProduct is the partner representation of a product.
 type PartnerProduct struct {
-	ID            string     `json:"id"`
-	ExternalID    string     `json:"external_id"`
-	CategoryID    string     `json:"category_id"`
-	Name          string     `json:"name"`
-	Description   *string    `json:"description"`
-	Price         float32    `json:"price"`
-	Available     bool       `json:"available"`
-	InventoryType string     `json:"inventory_type"`
-	Quantity      *int       `json:"quantity"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
-	DeletedAt     *time.Time `json:"deleted_at"`
+	ID                 string     `json:"id"`
+	ExternalID         string     `json:"external_id"`
+	CategoryExternalID string     `json:"category_external_id"`
+	Name               string     `json:"name"`
+	Description        *string    `json:"description"`
+	Price              float32    `json:"price"`
+	Available          bool       `json:"available"`
+	InventoryType      string     `json:"inventory_type"`
+	Quantity           *int       `json:"quantity"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+	DeletedAt          *time.Time `json:"deleted_at"`
 }
 
 // PartnerProductListResponse is the response returned when listing products.

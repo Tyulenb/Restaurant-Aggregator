@@ -42,3 +42,10 @@ SET quantity = quantity - $2,
 WHERE id = $1
   AND inventory_type_id = 1
   AND quantity >= $2;
+
+-- name: IncrementProductQuantity :execrows
+UPDATE product
+SET quantity = quantity + $2,
+    updated_at = NOW()
+WHERE id = $1
+  AND inventory_type_id = 1;

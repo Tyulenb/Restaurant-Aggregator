@@ -12,8 +12,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	transactor "github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/infrastructure/postgres"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/adapter/postgres/category/sqlc"
+	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/application/category"
+	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/application/establishment"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/domain"
 )
+
+var _ establishment.CategoryRepository = (*CategoryRepository)(nil)
+var _ category.CategoryRepository = (*CategoryRepository)(nil)
 
 const uniqueViolationCode = "23505"
 

@@ -12,10 +12,12 @@ import (
 	transactor "github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/infrastructure/postgres"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/adapter/postgres/product/sqlc"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application/customer"
+	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application/partner"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/domain"
 )
 
 var _ customer.ProductRepository = (*ProductRepository)(nil)
+var _ partner.ProductRepository = (*ProductRepository)(nil)
 
 type ProductRepository struct {
 	queries *sqlc.Queries
@@ -88,6 +90,25 @@ func (r *ProductRepository) DecrementProductQuantity(ctx context.Context, produc
 	if rows != 1 {
 		return domain.ErrInsufficientStock
 	}
+	return nil
+}
+
+func (r *ProductRepository) IncrementProductQuantity(ctx context.Context, productID string, quantity int) error {
+	id, err := uuid.Parse(productID)
+	if err != nil {
+		return fmt.Errorf("parse product ID: %w", err)
+	}
+
+	rows, err := r.getQueries(ctx).IncrementProductQuantity(ctx, sqlc.IncrementProductQuantityParams{
+		ID: id, Quantity: pgtype.Int4{Int32: int32(quantity), Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("increment product quantity: %w", err)
+	}
+	if rows != 1 {
+		return fmt.Errorf("increment product quantity: expected one finite product, updated %d", rows)
+	}
+
 	return nil
 }
 

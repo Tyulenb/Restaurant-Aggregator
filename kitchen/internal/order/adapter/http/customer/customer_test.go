@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	infrahttp "github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/infrastructure/http"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/application/customer"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/domain"
 )
@@ -36,7 +37,7 @@ func TestCustomerHandler_GetOrder(t *testing.T) {
 
 	usecase := &customerOrderUsecaseStub{findOrder: &domain.Order{ID: "order-id", StatusID: 1}}
 	handler := &CustomerHandler{logger: slog.Default(), usecase: usecase}
-	router := http.NewServeMux()
+	router := infrahttp.NewRouter()
 	handler.RegisterRoutes(router)
 
 	response := httptest.NewRecorder()
@@ -55,7 +56,7 @@ func TestCustomerHandler_CancelOrder(t *testing.T) {
 
 	usecase := &customerOrderUsecaseStub{cancelOrder: &domain.Order{ID: "order-id", StatusID: 7}}
 	handler := &CustomerHandler{logger: slog.Default(), usecase: usecase}
-	router := http.NewServeMux()
+	router := infrahttp.NewRouter()
 	handler.RegisterRoutes(router)
 
 	response := httptest.NewRecorder()

@@ -6,10 +6,14 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 type Querier interface {
-	GetAvailableEstablishments(ctx context.Context) ([]Establishment, error)
+	GetEstablishmentByID(ctx context.Context, id uuid.UUID) (Establishment, error)
+	GetEstablishments(ctx context.Context) ([]Establishment, error)
+	GetEstablishmentsByAvailability(ctx context.Context, available bool) ([]Establishment, error)
 	UpdateEstablishmentAvailability(ctx context.Context, arg UpdateEstablishmentAvailabilityParams) (Establishment, error)
 }
 

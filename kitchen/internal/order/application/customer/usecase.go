@@ -192,12 +192,12 @@ func (cu *CustomerUseCase) FindOrder(ctx context.Context, orderID string) (*doma
 // Find order + update order in one transaction
 func (cu *CustomerUseCase) CancelOrder(ctx context.Context, orderID string) (*domain.Order, error) {
 	if cu.Tx == nil {
-		return nil, errors.New("create order: transactor is not configured")
+		return nil, errors.New("cancel order: transactor is not configured")
 	}
 
 	var cancelledOrder *domain.Order
-	cu.Tx.WithTx(ctx, func(ctx context.Context) error {
-		order, err := cu.OrderRepo.FindOrderByIdForUpdate(ctx, orderID)
+	err := cu.Tx.WithTx(ctx, func(txCtx context.Context) error {
+		order, err := cu.OrderRepo.FindOrderByIdForUpdate(txCtx, orderID)
 		if err != nil {
 			return fmt.Errorf("find order %q: %w", orderID, err)
 		}
@@ -210,17 +210,56 @@ func (cu *CustomerUseCase) CancelOrder(ctx context.Context, orderID string) (*do
 			cancelledOrder = order
 			return nil
 		case domain.OrderCreated:
-			cancelledOrder, err = cu.OrderRepo.UpdateOrderStatus(ctx, orderID, int(domain.OrderCanceled))
+			cancelledOrder, err = cu.OrderRepo.UpdateOrderStatus(txCtx, orderID, int(domain.OrderCanceled))
 			if err != nil {
 				return fmt.Errorf("cancel order %q: %w", orderID, err)
 			}
+			if cancelledOrder == nil {
+				return fmt.Errorf("cancel order %q: repository returned a nil order", orderID)
+			}
+			if restoreErr := cu.restoreFiniteStock(txCtx, order.Items); restoreErr != nil {
+				return fmt.Errorf("cancel order %q: %w", orderID, restoreErr)
+			}
+			cancelledOrder.Items = order.Items
 
 			return nil
 		default:
 			return fmt.Errorf("%w: current StatusID %d", domain.ErrOrderCannotBeCancelled, order.StatusID)
 		}
 	})
+	if err != nil {
+		return nil, fmt.Errorf("cancel order %q: %w", orderID, err)
+	}
 	return cancelledOrder, nil
+}
+
+func (cu *CustomerUseCase) restoreFiniteStock(ctx context.Context, items []domain.OrderItem) error {
+	quantities := make(map[string]int, len(items))
+	for _, item := range items {
+		quantities[item.ProductID] += item.Quantity
+	}
+	productIDs := make([]string, 0, len(quantities))
+	for productID := range quantities {
+		productIDs = append(productIDs, productID)
+	}
+	sort.Strings(productIDs)
+
+	for _, productID := range productIDs {
+		product, err := cu.ProductRepo.FindProductByIdForUpdate(ctx, productID)
+		if err != nil {
+			return fmt.Errorf("lock product %q for stock restoration: %w", productID, err)
+		}
+		if product == nil {
+			return fmt.Errorf("lock product %q for stock restoration: product not found", productID)
+		}
+		if product.InventoryTypeID != domain.Finite {
+			continue
+		}
+		if err := cu.ProductRepo.IncrementProductQuantity(ctx, productID, quantities[productID]); err != nil {
+			return fmt.Errorf("restore product %q stock: %w", productID, err)
+		}
+	}
+	return nil
 }
 
 func sameOrderRequest(order domain.Order, establishmentID string, requestedQuantities map[string]int) bool {

@@ -9,34 +9,34 @@ import (
 	infrahttp "github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/infrastructure/http"
 	application "github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/application/product"
 	"github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/menu/domain"
-	orderdomain "github.com/talense-tasks/backend-trainee-assignment-autumn-2026-tyulenb-7224f74f/internal/order/domain"
 )
 
 type ProductUseCase interface {
-	ListPartnerProducts(ctx context.Context, establishmentID, categoryExternalID string, includeDeleted bool) ([]orderdomain.Product, error)
-	CreatePartnerProduct(ctx context.Context, establishmentID string, cmd application.CommandCreateProduct) (*orderdomain.Product, error)
-	FindProductByExternalId(ctx context.Context, establishmentID, externalID string) (*orderdomain.Product, error)
-	UpdateProductByExternalId(ctx context.Context, establishmentID, externalID string, cmd application.CommandUpdateProduct) (*orderdomain.Product, error)
-	DeleteProductByExternalId(ctx context.Context, establishmentID, externalID string) (*orderdomain.Product, error)
-	AdjustProductStock(ctx context.Context, establishmentID, externalID string, delta int) (*orderdomain.Product, error)
+	ListPartnerProducts(ctx context.Context, establishmentID, categoryExternalID string, includeDeleted bool) ([]domain.Product, error)
+	CreatePartnerProduct(ctx context.Context, establishmentID string, cmd application.CommandCreateProduct) (*domain.Product, error)
+	FindProductByExternalId(ctx context.Context, establishmentID, externalID string) (*domain.Product, error)
+	UpdateProductByExternalId(ctx context.Context, establishmentID, externalID string, cmd application.CommandUpdateProduct) (*domain.Product, error)
+	DeleteProductByExternalId(ctx context.Context, establishmentID, externalID string) (*domain.Product, error)
+	AdjustProductStock(ctx context.Context, establishmentID, externalID string, newQuantity int) (*domain.Product, error)
 }
 
 type ProductHandler struct {
-	logger  *slog.Logger
-	usecase ProductUseCase
+	logger         *slog.Logger
+	usecase        ProductUseCase
+	authMiddleware infrahttp.Middleware
 }
 
-func NewProductHandler(logger *slog.Logger, usecase ProductUseCase) *ProductHandler {
-	return &ProductHandler{logger: logger, usecase: usecase}
+func NewProductHandler(logger *slog.Logger, usecase ProductUseCase, authMiddleware infrahttp.Middleware) *ProductHandler {
+	return &ProductHandler{logger: logger, usecase: usecase, authMiddleware: authMiddleware}
 }
 
-func (h *ProductHandler) RegisterRoutes(router *http.ServeMux) {
-	router.HandleFunc("GET /api/partner/v1/products", h.getPartnerProducts)
-	router.HandleFunc("POST /api/partner/v1/products", h.postPartnerProduct)
-	router.HandleFunc("GET /api/partner/v1/products/{externalProductId}", h.getPartnerProduct)
-	router.HandleFunc("PATCH /api/partner/v1/products/{externalProductId}", h.patchPartnerProduct)
-	router.HandleFunc("DELETE /api/partner/v1/products/{externalProductId}", h.deletePartnerProduct)
-	router.HandleFunc("POST /api/partner/v1/products/{externalProductId}/stock-adjustments", h.adjustStocks)
+func (h *ProductHandler) RegisterRoutes(router *infrahttp.Router) {
+	router.Handle("GET /api/partner/v1/products", h.getPartnerProducts, h.authMiddleware)
+	router.Handle("POST /api/partner/v1/products", h.postPartnerProduct, h.authMiddleware)
+	router.Handle("GET /api/partner/v1/products/{externalProductId}", h.getPartnerProduct, h.authMiddleware)
+	router.Handle("PATCH /api/partner/v1/products/{externalProductId}", h.patchPartnerProduct, h.authMiddleware)
+	router.Handle("DELETE /api/partner/v1/products/{externalProductId}", h.deletePartnerProduct, h.authMiddleware)
+	router.Handle("POST /api/partner/v1/products/{externalProductId}/stock-adjustments", h.adjustStocks, h.authMiddleware)
 }
 
 func (h *ProductHandler) getPartnerProducts(w http.ResponseWriter, r *http.Request) {
@@ -73,7 +73,7 @@ func (h *ProductHandler) postPartnerProduct(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	product, err := h.usecase.CreatePartnerProduct(r.Context(), establishmentID, application.CommandCreateProduct{
-		ExternalID: request.ExternalID, CategoryExternalID: request.CategoryID,
+		ExternalID: request.ExternalID, CategoryExternalID: request.CategoryExternalID,
 		Name: request.Name, Description: request.Description, Price: request.Price,
 		Available: request.Available, InventoryType: request.InventoryType, Quantity: request.Quantity,
 	})
@@ -112,7 +112,7 @@ func (h *ProductHandler) patchPartnerProduct(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	product, err := h.usecase.UpdateProductByExternalId(r.Context(), establishmentID, externalID, application.CommandUpdateProduct{
-		CategoryExternalID: request.CategoryID, Name: request.Name,
+		CategoryExternalID: request.CategoryExternalID, Name: request.Name,
 		Description: request.Description, DescriptionSet: request.DescriptionSet, Price: request.Price,
 		Available: request.Available,
 	})
@@ -187,7 +187,7 @@ func (h *ProductHandler) writeUseCaseError(w http.ResponseWriter, operation stri
 	}
 }
 
-func writeProduct(w http.ResponseWriter, product *orderdomain.Product) {
+func writeProduct(w http.ResponseWriter, product *domain.Product) {
 	if product == nil {
 		writeProductNotFound(w)
 		return
@@ -195,9 +195,9 @@ func writeProduct(w http.ResponseWriter, product *orderdomain.Product) {
 	infrahttp.WriteJSON(w, http.StatusOK, productToDTO(*product))
 }
 
-func productToDTO(product orderdomain.Product) PartnerProduct {
+func productToDTO(product domain.Product) PartnerProduct {
 	return PartnerProduct{
-		ID: product.ID, ExternalID: product.ExternalID, CategoryID: product.CategoryID,
+		ID: product.ID, ExternalID: product.ExternalID, CategoryExternalID: product.CategoryID,
 		Name: product.Name, Description: product.Description, Price: product.Price,
 		Available: product.Available, InventoryType: inventoryTypeName(product.InventoryTypeID),
 		Quantity: product.Quantity, CreatedAt: product.CreatedAt, UpdatedAt: product.UpdatedAt,
@@ -205,8 +205,8 @@ func productToDTO(product orderdomain.Product) PartnerProduct {
 	}
 }
 
-func inventoryTypeName(inventoryType orderdomain.InventoryType) string {
-	if inventoryType == orderdomain.Finite {
+func inventoryTypeName(inventoryType domain.InventoryType) string {
+	if inventoryType == domain.Finite {
 		return "finite"
 	}
 	return "untracked"

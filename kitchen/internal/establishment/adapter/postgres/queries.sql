@@ -1,6 +1,15 @@
--- name: GetAvailableEstablishments :many
+-- name: GetEstablishments :many
 SELECT * FROM establishment
-WHERE available = True;
+ORDER BY created_at, id;
+
+-- name: GetEstablishmentsByAvailability :many
+SELECT * FROM establishment
+WHERE available = $1
+ORDER BY created_at, id;
+
+-- name: GetEstablishmentByID :one
+SELECT * FROM establishment
+WHERE id = $1;
 
 -- name: UpdateEstablishmentAvailability :one
 UPDATE establishment

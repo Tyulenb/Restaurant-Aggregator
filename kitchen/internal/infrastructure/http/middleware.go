@@ -13,7 +13,7 @@ const (
 	idempotencyKeyHeader      = "Idempotency-Key"
 )
 
-func EstablishmentAuthMiddleware(expectedHash, establishmentID string) func(http.Handler) http.Handler {
+func EstablishmentAuthMiddleware(expectedHash, establishmentID string) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			incomingHash, hasBearerPrefix := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")

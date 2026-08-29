@@ -191,30 +191,71 @@ func (r *OrderRepository) loadOrderItems(ctx context.Context, order *domain.Orde
 	return nil
 }
 
-func (r *OrderRepository) FindNewOrdersByEstablishmentId(
+func (r *OrderRepository) FindOrdersByEstablishmentID(
 	ctx context.Context,
 	establishmentID string,
+	status *int,
 ) ([]domain.Order, error) {
 	id, err := parseUUID("establishment ID", establishmentID)
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := r.getQueries(ctx).SelectCreatedOrdersByEstablishmentID(ctx, id)
+	var rows []sqlc.Order
+	if status == nil {
+		rows, err = r.getQueries(ctx).SelectOrdersByEstablishmentID(ctx, id)
+	} else {
+		rows, err = r.getQueries(ctx).SelectOrdersByEstablishmentIDAndStatus(
+			ctx,
+			sqlc.SelectOrdersByEstablishmentIDAndStatusParams{
+				EstablishmentID: id,
+				StatusID:        int32(*status),
+			},
+		)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("select new orders by establishment ID: %w", err)
+		return nil, fmt.Errorf("select orders by establishment ID: %w", err)
 	}
 
 	orders := make([]domain.Order, 0, len(rows))
 	for _, row := range rows {
 		order, convertErr := toDomain(row)
 		if convertErr != nil {
-			return nil, fmt.Errorf("convert new order: %w", convertErr)
+			return nil, fmt.Errorf("convert order: %w", convertErr)
 		}
 		orders = append(orders, order)
 	}
 
 	return orders, nil
+}
+
+func (r *OrderRepository) RejectOrder(
+	ctx context.Context, orderID string, reason *string,
+) (*domain.Order, error) {
+	id, err := parseUUID("order ID", orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	var rejectionReason pgtype.Text
+	if reason != nil {
+		rejectionReason = pgtype.Text{String: *reason, Valid: true}
+	}
+	row, err := r.getQueries(ctx).RejectOrderByID(ctx, sqlc.RejectOrderByIDParams{
+		RejectionReason: rejectionReason,
+		ID:              id,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("reject order: %w", err)
+	}
+	updatedOrder, err := toDomain(row)
+	if err != nil {
+		return nil, fmt.Errorf("convert rejected order: %w", err)
+	}
+	return &updatedOrder, nil
 }
 
 func (r *OrderRepository) UpdateOrderStatus(ctx context.Context, orderID string, status int) (*domain.Order, error) {

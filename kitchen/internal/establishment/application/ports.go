@@ -7,6 +7,7 @@ import (
 )
 
 type EstablishmentRepository interface {
-	SelectEstablishments(ctx context.Context) ([]domain.Establishment, error)
+	SelectEstablishments(ctx context.Context, available *bool) ([]domain.Establishment, error)
+	SelectEstablishmentById(ctx context.Context, establishmentId string) (*domain.Establishment, error)
 	UpdateEstablishmentAvailability(ctx context.Context, establishmentId string, aval bool) (*domain.Establishment, error)
 }

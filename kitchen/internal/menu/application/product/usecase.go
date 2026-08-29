@@ -13,8 +13,7 @@ import (
 )
 
 const (
-	minStockDelta = -1 << 31
-	maxStockDelta = 1<<31 - 1
+	maxStockQuantity = 1<<31 - 1
 )
 
 type ProductUseCase struct {
@@ -201,11 +200,10 @@ func (pu *ProductUseCase) AdjustProductStock(
 	if !validExternalID(externalID) {
 		return nil, fmt.Errorf("%w: external ID must contain 1 to 128 characters", domain.ErrProductValidation)
 	}
-	if quantity == 0 {
-		return nil, fmt.Errorf("%w: delta must not be zero", domain.ErrProductValidation)
-	}
-	if int64(quantity) < minStockDelta || int64(quantity) > maxStockDelta {
-		return nil, fmt.Errorf("%w: delta is outside the supported range", domain.ErrProductValidation)
+	if quantity < 0 || int64(quantity) > maxStockQuantity {
+		return nil, fmt.Errorf(
+			"%w: new quantity must be between 0 and %d", domain.ErrProductValidation, maxStockQuantity,
+		)
 	}
 	if pu.Tx == nil {
 		return nil, errors.New("adjust product stock: transactor is not configured")
@@ -225,11 +223,6 @@ func (pu *ProductUseCase) AdjustProductStock(
 		if selectedProduct.InventoryTypeID != domain.Finite || selectedProduct.Quantity == nil {
 			return fmt.Errorf("%w: product does not use finite inventory", domain.ErrStockAdjustmentConflict)
 		}
-		resultingQuantity := int64(*selectedProduct.Quantity) + int64(quantity)
-		if resultingQuantity < 0 || resultingQuantity > maxStockDelta {
-			return fmt.Errorf("%w: resulting quantity is outside the supported range", domain.ErrStockAdjustmentConflict)
-		}
-
 		updatedProduct, selectErr = pu.ProductRepo.UpdateProductQuantity(
 			txCtx, establishmentID, externalID, quantity,
 		)

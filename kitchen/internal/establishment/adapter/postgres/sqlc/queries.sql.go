@@ -11,13 +11,65 @@ import (
 	"github.com/google/uuid"
 )
 
-const getAvailableEstablishments = `-- name: GetAvailableEstablishments :many
+const getEstablishmentByID = `-- name: GetEstablishmentByID :one
 SELECT id, name, description, available, created_at, updated_at FROM establishment
-WHERE available = True
+WHERE id = $1
 `
 
-func (q *Queries) GetAvailableEstablishments(ctx context.Context) ([]Establishment, error) {
-	rows, err := q.db.Query(ctx, getAvailableEstablishments)
+func (q *Queries) GetEstablishmentByID(ctx context.Context, id uuid.UUID) (Establishment, error) {
+	row := q.db.QueryRow(ctx, getEstablishmentByID, id)
+	var i Establishment
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Available,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getEstablishments = `-- name: GetEstablishments :many
+SELECT id, name, description, available, created_at, updated_at FROM establishment
+ORDER BY created_at, id
+`
+
+func (q *Queries) GetEstablishments(ctx context.Context) ([]Establishment, error) {
+	rows, err := q.db.Query(ctx, getEstablishments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Establishment
+	for rows.Next() {
+		var i Establishment
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Available,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getEstablishmentsByAvailability = `-- name: GetEstablishmentsByAvailability :many
+SELECT id, name, description, available, created_at, updated_at FROM establishment
+WHERE available = $1
+ORDER BY created_at, id
+`
+
+func (q *Queries) GetEstablishmentsByAvailability(ctx context.Context, available bool) ([]Establishment, error) {
+	rows, err := q.db.Query(ctx, getEstablishmentsByAvailability, available)
 	if err != nil {
 		return nil, err
 	}

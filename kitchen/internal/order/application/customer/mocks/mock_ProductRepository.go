@@ -236,3 +236,66 @@ func (_c *MockProductRepository_FindProductByIdForUpdate_Call) RunAndReturn(run 
 	_c.Call.Return(run)
 	return _c
 }
+
+// IncrementProductQuantity provides a mock function for the type MockProductRepository
+func (_mock *MockProductRepository) IncrementProductQuantity(ctx context.Context, productID string, quantity int) error {
+	ret := _mock.Called(ctx, productID, quantity)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IncrementProductQuantity")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) error); ok {
+		r0 = returnFunc(ctx, productID, quantity)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockProductRepository_IncrementProductQuantity_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IncrementProductQuantity'
+type MockProductRepository_IncrementProductQuantity_Call struct {
+	*mock.Call
+}
+
+// IncrementProductQuantity is a helper method to define mock.On call
+//   - ctx context.Context
+//   - productID string
+//   - quantity int
+func (_e *MockProductRepository_Expecter) IncrementProductQuantity(ctx any, productID any, quantity any) *MockProductRepository_IncrementProductQuantity_Call {
+	return &MockProductRepository_IncrementProductQuantity_Call{Call: _e.mock.On("IncrementProductQuantity", ctx, productID, quantity)}
+}
+
+func (_c *MockProductRepository_IncrementProductQuantity_Call) Run(run func(ctx context.Context, productID string, quantity int)) *MockProductRepository_IncrementProductQuantity_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockProductRepository_IncrementProductQuantity_Call) Return(err error) *MockProductRepository_IncrementProductQuantity_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockProductRepository_IncrementProductQuantity_Call) RunAndReturn(run func(ctx context.Context, productID string, quantity int) error) *MockProductRepository_IncrementProductQuantity_Call {
+	_c.Call.Return(run)
+	return _c
+}

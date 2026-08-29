@@ -12,6 +12,7 @@ import (
 
 type Querier interface {
 	DecrementProductQuantity(ctx context.Context, arg DecrementProductQuantityParams) (int64, error)
+	IncrementProductQuantity(ctx context.Context, arg IncrementProductQuantityParams) (int64, error)
 	SelectProductByID(ctx context.Context, id uuid.UUID) (Product, error)
 	SelectProductByIDForUpdate(ctx context.Context, id uuid.UUID) (Product, error)
 }
