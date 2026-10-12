@@ -259,6 +259,9 @@ func (r *OrderRepository) RejectOrder(
 	if err != nil {
 		return nil, fmt.Errorf("convert rejected order: %w", err)
 	}
+	if err := r.loadOrderItems(ctx, &updatedOrder); err != nil {
+		return nil, err
+	}
 	return &updatedOrder, nil
 }
 
@@ -282,6 +285,9 @@ func (r *OrderRepository) UpdateOrderStatus(ctx context.Context, orderID string,
 	updatedOrder, err := toDomain(row)
 	if err != nil {
 		return nil, fmt.Errorf("convert updated order: %w", err)
+	}
+	if err := r.loadOrderItems(ctx, &updatedOrder); err != nil {
+		return nil, err
 	}
 
 	return &updatedOrder, nil
